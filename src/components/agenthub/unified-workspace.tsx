@@ -344,7 +344,7 @@ function AgentStatusCard({ name, status, category, provider }: {
 
 // ==================== Empty State ====================
 
-function EmptyChatState() {
+function EmptyChatState({ onSuggestionClick }: { onSuggestionClick: (text: string) => void }) {
   const setViewMode = useAppStore((s) => s.setViewMode)
 
   return (
@@ -371,7 +371,8 @@ function EmptyChatState() {
         ].map((suggestion) => (
           <button
             key={suggestion}
-            className="px-3 py-2 rounded-lg bg-gray-50 text-gray-600 text-[12px] text-left hover:bg-gray-100 transition-colors border border-gray-100"
+            onClick={() => onSuggestionClick(suggestion)}
+            className="px-3 py-2 rounded-lg bg-gray-50 text-gray-600 text-[12px] text-left hover:bg-gray-100 hover:text-gray-900 transition-colors border border-gray-100 cursor-pointer"
           >
             &quot;{suggestion}&quot;
           </button>
@@ -657,7 +658,7 @@ export default function UnifiedWorkspace() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-5">
           {!hasMessages ? (
-            <EmptyChatState />
+            <EmptyChatState onSuggestionClick={(text) => { setInputValue(text); setTimeout(() => handleSend(), 50) }} />
           ) : (
             <div className="max-w-3xl mx-auto py-4">
               {workspaceMessages.map((msg) => (

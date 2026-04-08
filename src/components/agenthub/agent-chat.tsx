@@ -211,7 +211,7 @@ function ChatBubble({ message, agentName }: { message: ChatMessage; agentName: s
 
 // ==================== Empty State ====================
 
-function EmptyState({ agentName }: { agentName: string }) {
+function EmptyState({ agentName, onSuggestionClick }: { agentName: string; onSuggestionClick: (text: string) => void }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6 py-20">
       <div className="relative mb-6">
@@ -232,9 +232,13 @@ function EmptyState({ agentName }: { agentName: string }) {
         <p>Try saying:</p>
         <div className="flex flex-wrap justify-center gap-2">
           {['Analyze this code', 'Help me research...', 'Build a feature', 'Review my project'].map((suggestion) => (
-            <span key={suggestion} className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px]">
+            <button
+              key={suggestion}
+              onClick={() => onSuggestionClick(suggestion)}
+              className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] hover:bg-gray-200 hover:text-gray-900 transition-colors cursor-pointer"
+            >
               &quot;{suggestion}&quot;
-            </span>
+            </button>
           ))}
         </div>
       </div>
@@ -549,7 +553,7 @@ export default function AgentChatWorkspace() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6">
           {agentMessages.length <= 1 ? (
-            <EmptyState agentName={activeAgent.name} />
+            <EmptyState agentName={activeAgent.name} onSuggestionClick={(text) => { setInputValue(text); setTimeout(() => handleSend(), 50) }} />
           ) : (
             <div className="max-w-3xl mx-auto">
               {agentMessages.map((msg) => (
