@@ -166,3 +166,52 @@ Stage Summary:
 - Production: https://my-project-rho-brown-94.vercel.app
 - Git: https://github.com/dav-niu474/agentHub
 - ESLint passes, dev server HTTP 200
+
+---
+Task ID: 13
+Agent: Main Orchestrator
+Task: Fix 500 error on workspace/chat, fix model dropdown overflow, real AI integration, deploy
+
+Work Log:
+- Diagnosed 500 error: NVIDIA_API_KEY was missing on Vercel for preview/development targets
+- Added NVIDIA_API_KEY to Vercel env vars (production + preview + development targets) via Vercel API
+- Rewrote src/lib/nvidia-nim.ts:
+  - Added 11 model mappings: Llama 3.1 Nemotron 70B, Llama 3.1 405B, Llama 3.1 70B, Mistral NeMo 12B, Mixtral 8x22B, Llama 3.1 8B, CodeGemma 7B, GLM 4.7, GLM 5, Kimi 2.5
+  - Added getNimModelId() helper to map app model IDs to NIM model IDs
+  - Added callNVIDIAWithFallback() with 3-level automatic model fallback chain
+  - Added callNVIDIAConversation() convenience function
+  - Returns {content, model} tuple for transparency
+- Rewrote /api/workspace/chat/route.ts:
+  - Accepts modelId parameter from frontend, resolves to NIM model ID
+  - Uses callNVIDIAConversation() with fallback
+  - Better error messages returned to client
+  - Phase-aware: skips AI calls for non-AI responses (confirm/execute/status)
+- Rewrote /api/chat/route.ts:
+  - Replaced ALL fake static responses with real NVIDIA NIM API calls
+  - Agent-specific system prompts (Claude Code, Codex, Deep Research, etc.)
+  - Uses callNVIDIAConversation() with fallback
+  - Accepts modelId parameter from frontend
+  - Returns model name in response
+- Fixed model selector dropdown overflow in workspace.tsx:
+  - Changed from single-line flex layout to two-line vertical layout (name + provider/credits)
+  - Added truncate class on both lines
+  - Set max-h-[280px] on SelectContent
+- Updated unified-workspace.tsx:
+  - Passes selectedModelId to /api/workspace/chat API
+  - Added API error handling (displays error message in system bubble)
+  - Fixed handleSend dependency array
+- Updated chat-panel.tsx:
+  - Passes selectedModelId to /api/chat API
+  - Fixed sendMessage dependency array
+- Deployed to Vercel production
+- Verified: both /api/workspace/chat and /api/chat return real AI responses on Vercel
+
+Stage Summary:
+- 500 error FIXED: NVIDIA API key configured for all targets, model fallback working
+- Model dropdown overflow FIXED: two-line layout with truncation
+- Real AI integration: all chat APIs use NVIDIA NIM with automatic fallback
+- 3-level fallback chain: requested model → Llama 3.1 70B → Mistral NeMo 12B → Llama 3.1 8B
+- 11 models available including GLM 4.7, GLM 5, Kimi 2.5
+- GLM 5 set as default model
+- Production: https://my-project-rho-brown-94.vercel.app
+- Both APIs verified working on production
