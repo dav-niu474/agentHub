@@ -2,10 +2,11 @@
 
 import {
   House,
-  Compass,
-  MessageSquare,
-  Clock,
-  Heart,
+  LayoutDashboard,
+  Bot,
+  ListChecks,
+  Eye,
+  CreditCard,
   Settings,
   Coins,
   type LucideIcon,
@@ -32,10 +33,11 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: House, label: 'Home', viewMode: 'landing' },
-  { icon: Compass, label: 'Explore', viewMode: 'marketplace' },
-  { icon: MessageSquare, label: 'Chat', viewMode: 'chat' },
-  { icon: Clock, label: 'History', viewMode: 'history' },
-  { icon: Heart, label: 'Favorites', viewMode: 'favorites' },
+  { icon: LayoutDashboard, label: 'Workspace', viewMode: 'workspace' },
+  { icon: Bot, label: 'Agents', viewMode: 'agents' },
+  { icon: ListChecks, label: 'Tasks', viewMode: 'tasks' },
+  { icon: Eye, label: 'Showcase', viewMode: 'showcase' },
+  { icon: CreditCard, label: 'Pricing', viewMode: 'pricing' },
   { icon: Settings, label: 'Settings', viewMode: 'settings' },
 ]
 
@@ -68,7 +70,7 @@ export default function MobileDrawer() {
         <SheetHeader className="px-5 pt-6 pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900">
             {/* Logo */}
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-600">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-slate-600">
               <span className="text-white text-xs font-bold">AH</span>
             </div>
             Agent<span className="text-orange-500">Hub</span>

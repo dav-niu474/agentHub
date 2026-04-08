@@ -4,14 +4,17 @@ import { useInitializeStore } from '@/hooks/use-initialize-store'
 import { useAppStore } from '@/store/app-store'
 import { Sidebar } from '@/components/agenthub/sidebar'
 import { Topbar } from '@/components/agenthub/topbar'
-import Marketplace from '@/components/agenthub/marketplace'
-import ChatPanel from '@/components/agenthub/chat-panel'
+import MobileDrawer from '@/components/agenthub/mobile-drawer'
+import LandingView from '@/components/agenthub/landing-view'
+import Workspace from '@/components/agenthub/workspace'
+import AgentStore from '@/components/agenthub/agent-store'
+import TasksView from '@/components/agenthub/tasks-view'
+import ShowcaseView from '@/components/agenthub/showcase-view'
+import PricingView from '@/components/agenthub/pricing-view'
+import CompareView from '@/components/agenthub/compare-view'
 import HistoryView from '@/components/agenthub/history-view'
-import FavoritesView from '@/components/agenthub/favorites-view'
 import SettingsView from '@/components/agenthub/settings-view'
 import ProfileView from '@/components/agenthub/profile-view'
-import LandingView from '@/components/agenthub/landing-view'
-import MobileDrawer from '@/components/agenthub/mobile-drawer'
 
 export default function Home() {
   useInitializeStore()
@@ -19,22 +22,19 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background">
-      {/* Desktop Sidebar */}
       <Sidebar />
-
-      {/* Mobile Drawer */}
       <MobileDrawer />
-
-      {/* Top Bar */}
       <Topbar />
 
-      {/* Main Content */}
       <main className="h-full pt-[52px] md:pl-[80px]">
         {viewMode === 'landing' && <LandingView />}
-        {viewMode === 'chat' && <ChatPanel />}
-        {viewMode === 'marketplace' && <Marketplace />}
+        {viewMode === 'workspace' && <Workspace />}
+        {viewMode === 'agents' && <AgentStore />}
+        {viewMode === 'tasks' && <TasksView />}
+        {viewMode === 'showcase' && <ShowcaseView />}
+        {viewMode === 'pricing' && <PricingView />}
+        {viewMode === 'compare' && <CompareView />}
         {viewMode === 'history' && <HistoryView />}
-        {viewMode === 'favorites' && <FavoritesView />}
         {viewMode === 'settings' && <SettingsView />}
         {viewMode === 'profile' && <ProfileView />}
       </main>

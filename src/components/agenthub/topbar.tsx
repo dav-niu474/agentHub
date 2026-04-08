@@ -8,9 +8,11 @@ import {
   User,
   Settings,
   LogOut,
+  ChevronDown,
   Sparkles,
+  Check,
 } from 'lucide-react'
-import { useAppStore } from '@/store/app-store'
+import { useAppStore, DEFAULT_MODELS } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,18 +25,45 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 
 /** Map viewMode to a human-readable page title */
-const viewModeTitles: Record<string, string> = {
+const VIEW_MODE_TITLES: Record<string, string> = {
   landing: '',
-  chat: 'Chat',
-  marketplace: 'Skill Store',
+  workspace: 'Workspace',
+  agents: 'Agent Store',
+  tasks: 'Task History',
+  showcase: 'Showcase',
+  pricing: 'Pricing',
+  compare: 'Compare',
   history: 'History',
-  favorites: 'Favorites',
-  profile: 'My Profile',
+  profile: 'Profile',
   settings: 'Settings',
+}
+
+/** Provider-specific badge colors for model selector */
+const PROVIDER_BADGE: Record<string, string> = {
+  anthropic: 'bg-orange-100 text-orange-700',
+  openai: 'bg-emerald-100 text-emerald-700',
+  google: 'bg-blue-100 text-blue-700',
+  deepseek: 'bg-cyan-100 text-cyan-700',
+  meta: 'bg-violet-100 text-violet-700',
+}
+
+/** Provider-specific dot colors */
+const PROVIDER_DOT: Record<string, string> = {
+  anthropic: 'bg-orange-500',
+  openai: 'bg-emerald-500',
+  google: 'bg-blue-500',
+  deepseek: 'bg-cyan-600',
+  meta: 'bg-violet-500',
 }
 
 export function Topbar() {
@@ -45,12 +74,15 @@ export function Topbar() {
     setSearchQuery,
     userCredits,
     userName,
-    userAvatar,
+    selectedModelId,
+    setSelectedModelId,
+    models,
     mobileMenuOpen,
     setMobileMenuOpen,
   } = useAppStore()
 
   const [scrolled, setScrolled] = useState(false)
+  const [modelPopoverOpen, setModelPopoverOpen] = useState(false)
 
   // Track scroll position for backdrop-blur effect
   useEffect(() => {
@@ -69,17 +101,23 @@ export function Topbar() {
     .toUpperCase()
     .slice(0, 2)
 
-  const pageTitle = viewModeTitles[viewMode] ?? ''
+  const pageTitle = VIEW_MODE_TITLES[viewMode] ?? ''
+
+  // Current selected model
+  const currentModel = models.find((m) => m.id === selectedModelId) ?? DEFAULT_MODELS[0]
+  const providerLower = currentModel.provider.toLowerCase()
 
   // Placeholder text for the search input
   const searchPlaceholder =
-    viewMode === 'marketplace'
-      ? 'Search skills & agents…'
-      : viewMode === 'chat'
-        ? 'Search conversations…'
-        : viewMode === 'history'
-          ? 'Search history…'
-          : 'Search…'
+    viewMode === 'agents'
+      ? 'Search agents & capabilities…'
+      : viewMode === 'tasks'
+        ? 'Search tasks…'
+        : viewMode === 'showcase'
+          ? 'Search showcase…'
+          : viewMode === 'pricing'
+            ? 'Search plans…'
+            : 'Search…'
 
   return (
     <header
@@ -138,8 +176,118 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* ── Right: Credits + User avatar ── */}
-      <div className="flex items-center gap-3 pr-4 ml-auto md:ml-0">
+      {/* ── Right: Model selector + Credits + User avatar ── */}
+      <div className="flex items-center gap-2 pr-4 ml-auto md:ml-0">
+        {/* Model Selector Popover */}
+        <Popover open={modelPopoverOpen} onOpenChange={setModelPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className={cn(
+                'hidden sm:flex items-center gap-2 h-8 px-2.5 rounded-lg',
+                'hover:bg-gray-100 text-gray-700 font-medium text-sm',
+                'transition-colors duration-150',
+              )}
+            >
+              {/* Provider color dot */}
+              <span
+                className={cn(
+                  'h-2 w-2 rounded-full shrink-0',
+                  PROVIDER_DOT[providerLower] || 'bg-gray-500',
+                )}
+              />
+              <span className="truncate max-w-[120px]">{currentModel.name}</span>
+              <ChevronDown className="size-3.5 text-gray-400 shrink-0" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-0">
+            <div className="px-3 py-2.5 border-b border-gray-100">
+              <p className="text-sm font-semibold text-gray-900">Select AI Model</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Choose the model for your workspace
+              </p>
+            </div>
+            <ScrollArea className="max-h-[280px]">
+              <div className="py-1">
+                {models.map((model) => {
+                  const isActive = model.id === selectedModelId
+                  const mProviderLower = model.provider.toLowerCase()
+                  return (
+                    <button
+                      key={model.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedModelId(model.id)
+                        setModelPopoverOpen(false)
+                        toast.success(`Switched to ${model.name}`, {
+                          description: `Credits per conversation: ${model.creditsPerConversation}`,
+                        })
+                      }}
+                      className={cn(
+                        'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-100',
+                        isActive
+                          ? 'bg-gray-50'
+                          : 'hover:bg-gray-50',
+                      )}
+                    >
+                      {/* Provider color dot */}
+                      <span
+                        className={cn(
+                          'h-3 w-3 rounded-full shrink-0',
+                          PROVIDER_DOT[mProviderLower] || 'bg-gray-500',
+                        )}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {model.name}
+                          </span>
+                          {isActive && (
+                            <Check className="size-3.5 text-emerald-600 shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-gray-500">{model.provider}</span>
+                          <span className="text-xs text-gray-300">·</span>
+                          <span className="text-xs text-gray-500">
+                            {model.creditsPerConversation} credits
+                          </span>
+                          {model.tier === 'pro' && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] font-semibold px-1.5 py-0 h-4 bg-amber-100 text-amber-700 border-0"
+                            >
+                              PRO
+                            </Badge>
+                          )}
+                          {model.tier === 'enterprise' && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] font-semibold px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-0"
+                            >
+                              ENT
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
+
+        {/* Mobile-only model indicator */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sm:hidden size-8 shrink-0"
+          aria-label="Model selector"
+        >
+          <Sparkles className="size-4 text-gray-500" />
+        </Button>
+
         {/* Credits display */}
         <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-600">
           <Coins className="size-4 text-amber-500" />
@@ -152,6 +300,11 @@ export function Topbar() {
           </Badge>
         </div>
 
+        {/* Mobile credits */}
+        <div className="sm:hidden">
+          <Coins className="size-4 text-amber-500" />
+        </div>
+
         {/* User dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -161,15 +314,9 @@ export function Topbar() {
               aria-label="User menu"
             >
               <Avatar className="size-8">
-                {userAvatar ? (
-                  <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-bold">
-                    {initials}
-                  </AvatarFallback>
-                ) : (
-                  <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-bold">
-                    {initials}
-                  </AvatarFallback>
-                )}
+                <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-bold">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -190,7 +337,7 @@ export function Topbar() {
               className="cursor-pointer"
             >
               <User className="size-4" />
-              My Profile
+              Profile
             </DropdownMenuItem>
 
             <DropdownMenuItem
