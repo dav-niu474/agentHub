@@ -140,6 +140,28 @@ export interface Notification {
   timestamp: Date
 }
 
+// Task tree types (used by workspace.tsx)
+export interface TaskAction {
+  id: string
+  type: 'think' | 'plan' | 'code' | 'research' | 'review' | 'file_op' | 'command' | 'error'
+  description: string
+  detail?: string
+  timestamp: Date
+  creditsCost: number
+}
+
+export interface TaskNode {
+  id: string
+  goal: string
+  status: 'pending' | 'planning' | 'executing' | 'reviewing' | 'completed' | 'failed'
+  agentInstanceId?: string
+  children: TaskNode[]
+  actions: TaskAction[]
+  creditsUsed: number
+  startedAt?: Date
+  completedAt?: Date
+}
+
 // ==================== App State ====================
 
 interface AppState {
@@ -191,6 +213,15 @@ interface AppState {
   addProjectTask: (task: ProjectTask) => void
   updateProjectTask: (id: string, updates: Partial<ProjectTask>) => void
   removeProjectTask: (id: string) => void
+  clearProjectTasks: () => void
+
+  // Active goal (used by workspace.tsx)
+  activeGoal: string
+  setActiveGoal: (goal: string) => void
+
+  // Task tree (used by workspace.tsx)
+  taskTree: TaskNode | null
+  setTaskTree: (tree: TaskNode | null) => void
 
   // Notifications
   notifications: Notification[]
@@ -482,6 +513,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeProjectTask: (id) => set((state) => ({
     projectTasks: state.projectTasks.filter((t) => t.id !== id),
   })),
+  clearProjectTasks: () => set({ projectTasks: [] }),
+
+  activeGoal: '',
+  setActiveGoal: (goal) => set({ activeGoal: goal }),
+
+  taskTree: null,
+  setTaskTree: (tree) => set({ taskTree: tree }),
 
   notifications: [],
   addNotification: (notification) => set((state) => ({ notifications: [notification, ...state.notifications] })),
