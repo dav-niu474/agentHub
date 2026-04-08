@@ -294,6 +294,7 @@ export default function ChatPanel() {
     activeAgentId,
     setActiveAgentId,
     skills,
+    selectedModelId,
   } = useAppStore()
 
   const [inputValue, setInputValue] = useState('')
@@ -385,6 +386,7 @@ export default function ChatPanel() {
             message: text,
             agentId: activeAgentId,
             chatHistory,
+            modelId: selectedModelId,
           }),
         })
 
@@ -424,6 +426,7 @@ export default function ChatPanel() {
       currentChatId,
       isChatLoading,
       activeAgentId,
+      selectedModelId,
       skills,
       addMessage,
       addChatSession,

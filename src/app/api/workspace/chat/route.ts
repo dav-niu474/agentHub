@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { callNVIDIA, NIM_MODELS } from '@/lib/nvidia-nim'
+import { callNVIDIAConversation, getNimModelId } from '@/lib/nvidia-nim'
 
 interface HiredAgent {
   id: string
@@ -95,57 +95,12 @@ function matchAgentToCategory(
   return agents[0] || null
 }
 
-async function callLLM(systemPrompt: string, conversationHistory: Array<{ role: string; content: string }>, userMessage: string): Promise<string> {
-  try {
-    const response = await callNVIDIA(
-      [
-        { role: 'system', content: systemPrompt },
-        ...conversationHistory.map((m) => ({
-          role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: m.content,
-        })),
-        { role: 'user', content: userMessage },
-      ],
-      {
-        model: NIM_MODELS['nvidia-llama-3.1-nemotron-70b'].id,
-        temperature: 0.6,
-        max_tokens: 2048,
-      }
-    )
-    return response
-  } catch (error) {
-    console.error('NVIDIA NIM call failed, trying fallback model:', error)
-    try {
-      // Fallback to Mistral NeMo 12B
-      const response = await callNVIDIA(
-        [
-          { role: 'system', content: systemPrompt },
-          ...conversationHistory.map((m) => ({
-            role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-            content: m.content,
-          })),
-          { role: 'user', content: userMessage },
-        ],
-        {
-          model: NIM_MODELS['nvidia-mistral-nemo-12b'].id,
-          temperature: 0.6,
-          max_tokens: 2048,
-        }
-      )
-      return response
-    } catch (fallbackError) {
-      console.error('NVIDIA NIM fallback also failed:', fallbackError)
-      throw new Error('All NVIDIA NIM models failed')
-    }
-  }
-}
-
 // ==================== Main Handler ====================
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, chatHistory, hiredAgents, currentPhase } = body
+    const { message, chatHistory, hiredAgents, currentPhase, modelId } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -155,34 +110,46 @@ export async function POST(request: NextRequest) {
     const history: Array<{ role: string; content: string }> = chatHistory || []
     const phase = currentPhase || 'idle'
 
+    // Resolve the NIM model ID from the frontend model selection
+    const nimModelId = modelId ? getNimModelId(modelId) : undefined
+
     let response = ''
     let tasks: PlanTask[] = []
     let newPhase = phase
+    let usedModel = 'unknown'
 
     // ==================== PHASE: Clarifying ====================
     if (phase === 'idle' || phase === 'clarifying') {
       const context = buildConversationContext(history)
-      const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
-
-      response = aiResponse
+      const result = await callNVIDIAConversation(CLARIFY_SYSTEM_PROMPT, context, message, {
+        model: nimModelId,
+        temperature: 0.6,
+        max_tokens: 2048,
+      })
+      response = result.content
+      usedModel = result.model
 
       // Check if AI is ready to plan
-      if (aiResponse.includes('[READY_TO_PLAN]')) {
+      if (response.includes('[READY_TO_PLAN]')) {
         newPhase = 'planning'
-        response = aiResponse.replace('[READY_TO_PLAN]', '').trim()
+        response = response.replace('[READY_TO_PLAN]', '').trim()
 
         // Auto-generate the plan immediately
         const planSystemPrompt = `${PLAN_SYSTEM_PROMPT}\n\nBased on the conversation, the user wants to build something with these understood requirements:\n${response}`
 
         try {
-          const planResponse = await callLLM(planSystemPrompt, [], 'Create a detailed task plan for this project.')
+          const planResult = await callNVIDIAConversation(planSystemPrompt, [], 'Create a detailed task plan for this project.', {
+            model: nimModelId,
+            temperature: 0.3,
+            max_tokens: 2048,
+          })
 
           let planJson
           try {
-            const cleaned = planResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+            const cleaned = planResult.content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
             planJson = JSON.parse(cleaned)
           } catch {
-            const jsonMatch = planResponse.match(/\{[\s\S]*\}/)
+            const jsonMatch = planResult.content.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
               planJson = JSON.parse(jsonMatch[0])
             }
@@ -227,6 +194,7 @@ export async function POST(request: NextRequest) {
       ) {
         newPhase = 'executing'
         response = `✅ **Plan confirmed!** I'm now dispatching tasks to your agent team. You can monitor progress in the task board.`
+        usedModel = 'none'
       } else if (
         lower.includes('add task') ||
         lower.includes('remove') ||
@@ -239,16 +207,22 @@ export async function POST(request: NextRequest) {
       ) {
         newPhase = 'planning'
         response = `Sure! You can directly edit the task plan in the panel on the right:\n\n- ✏️ Click on any task title or description to edit it\n- ➕ Use "Add Task" to add new tasks\n- 🗑️ Use the remove button to delete tasks\n- 📊 Adjust priority levels as needed\n\nOnce you're happy with the plan, type **"confirm"** or **"execute"** to start dispatching tasks to your agents.`
+        usedModel = 'none'
       } else {
         const context = buildConversationContext(history)
-        const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
-        response = aiResponse
+        const result = await callNVIDIAConversation(CLARIFY_SYSTEM_PROMPT, context, message, {
+          model: nimModelId,
+          temperature: 0.6,
+          max_tokens: 2048,
+        })
+        response = result.content
+        usedModel = result.model
 
-        if (!aiResponse.includes('[READY_TO_PLAN]')) {
+        if (!response.includes('[READY_TO_PLAN]')) {
           newPhase = 'clarifying'
           response += '\n\n💡 Want me to update the task plan based on this? Just say "update the plan".'
         } else {
-          response = aiResponse.replace('[READY_TO_PLAN]', '').trim()
+          response = response.replace('[READY_TO_PLAN]', '').trim()
           newPhase = 'planning'
         }
       }
@@ -256,6 +230,7 @@ export async function POST(request: NextRequest) {
     // ==================== PHASE: Executing ====================
     else if (phase === 'executing') {
       const lower = message.toLowerCase()
+      usedModel = 'none'
 
       if (lower.includes('progress') || lower.includes('status') || lower.includes('how')) {
         response = `Here's the current status of your project:\n\n**Active Tasks:** Check the task board on the right for real-time progress updates.\n\nYour agents are working autonomously. I'll notify you as soon as any task is completed. You can also click on an agent in the sidebar to see their individual workspace.`
@@ -290,15 +265,16 @@ export async function POST(request: NextRequest) {
       phase: newPhase,
       tasks: tasks.length > 0 ? tasks : undefined,
       assignments: assignments.length > 0 ? assignments : undefined,
-      model: 'NVIDIA Llama 3.1 Nemotron 70B (NIM)',
+      model: usedModel,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
     console.error('Workspace chat API error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
       {
         error: 'Internal server error',
-        message: 'Sorry, I encountered an error processing your request. Please try again.',
+        message: `Sorry, I encountered an error: ${errorMessage}. Please try again.`,
         phase: 'idle',
       },
       { status: 500 }

@@ -907,6 +907,7 @@ export default function UnifiedWorkspace() {
     addPlanTask,
     userEmail,
     clearWorkspaceMessages,
+    selectedModelId,
   } = useAppStore()
 
   const [inputValue, setInputValue] = useState('')
@@ -1005,10 +1006,22 @@ export default function UnifiedWorkspace() {
           chatHistory: workspaceMessages.map((m) => ({ role: m.role, content: m.content })),
           hiredAgents: hiredAgents,
           currentPhase: workspacePhase,
+          modelId: selectedModelId,
         }),
       })
 
       const data = await response.json()
+
+      // Handle API errors
+      if (!response.ok) {
+        addWorkspaceMessage({
+          id: `ws-error-${Date.now()}`,
+          role: 'system',
+          content: data.message || `Server error (${response.status}). Please try again.`,
+          timestamp: new Date(),
+        })
+        return
+      }
 
       // Update phase
       if (data.phase) {
@@ -1053,7 +1066,7 @@ export default function UnifiedWorkspace() {
     } finally {
       setIsProcessing(false)
     }
-  }, [inputValue, isProcessing, workspaceMessages, hiredAgents, workspacePhase, addWorkspaceMessage, setWorkspacePhase, setCurrentPlan])
+  }, [inputValue, isProcessing, workspaceMessages, hiredAgents, workspacePhase, selectedModelId, addWorkspaceMessage, setWorkspacePhase, setCurrentPlan])
 
   // Confirm plan and dispatch tasks
   const handleConfirmPlan = useCallback(async () => {

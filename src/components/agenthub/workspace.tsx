@@ -658,13 +658,13 @@ function LeftPanel() {
             <SelectTrigger className="w-full rounded-xl border-gray-200 bg-gray-50/50 text-sm">
               <SelectValue placeholder="Select a model" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-[280px]">
               {models.map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{model.name}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      ({model.provider}) &middot; {model.creditsPerConversation} credits
+                <SelectItem key={model.id} value={model.id} className="py-2">
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="font-medium text-sm truncate">{model.name}</span>
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      {model.provider} · {model.creditsPerConversation} credits
                     </span>
                   </div>
                 </SelectItem>
