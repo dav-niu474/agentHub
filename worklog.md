@@ -96,3 +96,24 @@ Stage Summary:
 - Code pushed to GitHub: https://github.com/dav-niu474/agentHub
 - Deployed to Vercel: https://my-project-rho-brown-94.vercel.app
 - ESLint passes, dev server HTTP 200
+
+---
+Task ID: 11
+Agent: Main Orchestrator
+Task: Rename project to match GitHub repository name "agentHub"
+
+Work Log:
+- Updated package.json name from 'nextjs_tailwind_shadcn_ts' to 'agenthub'
+- Renamed Vercel project from 'my-project' to 'agenthub' via Vercel API
+- Updated .vercel/project.json to reflect new project name
+- Redeployed to Vercel production with updated project name
+- Cleaned up .gitignore: added db/*.db, temp JSON files, download/ directory
+- Removed tracked sensitive/temp files: db/custom.db, 19 research JSON files, download/README.md
+- Committed and pushed to GitHub main branch
+
+Stage Summary:
+- Project name unified as "AgentHub" across package.json, Vercel, and GitHub
+- Vercel project renamed: https://vercel.com/dav-niu474s-projects/agenthub
+- Git repo: https://github.com/dav-niu474/agentHub
+- Production URL: https://my-project-rho-brown-94.vercel.app (alias preserved)
+- ESLint passes, dev server HTTP 200
