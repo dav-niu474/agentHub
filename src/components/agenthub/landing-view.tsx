@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useAppStore, DEFAULT_AGENT_TYPES, DEFAULT_SHOWCASE } from '@/store/app-store'
+import { useAppStore, DEFAULT_AGENT_TYPES, DEFAULT_SHOWCASE, DEFAULT_MODELS } from '@/store/app-store'
 import {
   Zap,
   ArrowRight,
@@ -64,18 +64,18 @@ const FEATURED_AGENT_IDS = ['claude-code', 'codex', 'openclaw', 'deep-research']
 const STEPS: { icon: LucideIcon; title: string; description: string }[] = [
   {
     icon: Bot,
-    title: 'Choose Your Agents',
-    description: 'Select from Claude Code, Codex, OpenClaw and more. Pick the right AI agents for your task.',
+    title: 'Hire AI Agents',
+    description: 'Browse the Agent Store and hire Claude Code, Codex, OpenClaw and more for your projects.',
   },
   {
     icon: Target,
-    title: 'Define Your Goal',
-    description: 'Describe what you want to build, research, or accomplish in plain language.',
+    title: 'Chat & Assign Tasks',
+    description: 'Click an agent in the sidebar to chat. Create tasks and assign them based on each agent\'s strengths.',
   },
   {
     icon: Rocket,
-    title: 'Wake Up to Results',
-    description: 'Agents work 24/7 autonomously in the cloud. You rest, they never stop.',
+    title: 'Get Results via Email',
+    description: 'Agents work autonomously and deliver results. Receive notifications when tasks are completed.',
   },
 ]
 
@@ -91,7 +91,7 @@ const TRUSTED_LOGOS = [
 // ---------- Main Component ----------
 
 export default function LandingView() {
-  const { setViewMode, addAgentInstance, agentInstances } = useAppStore()
+  const { setViewMode, addAgentInstance, agentInstances, setActiveAgentInstanceId } = useAppStore()
 
   const featuredAgents = DEFAULT_AGENT_TYPES.filter((a) =>
     FEATURED_AGENT_IDS.includes(a.id),
@@ -99,22 +99,28 @@ export default function LandingView() {
 
   const showcaseItems = DEFAULT_SHOWCASE.slice(0, 3)
 
-  const handleAddToTeam = (agentId: string, agentName: string) => {
-    // Check if already added
+  const handleHire = (agentId: string, agentName: string) => {
+    // Check if already hired
     const exists = agentInstances.some((i) => i.agentTypeId === agentId)
     if (exists) {
-      setViewMode('workspace')
+      const existingInst = agentInstances.find((i) => i.agentTypeId === agentId)
+      if (existingInst) {
+        setActiveAgentInstanceId(existingInst.id)
+        setViewMode('agent-chat')
+      }
       return
     }
+    const instanceId = `inst-${agentId}-${Date.now()}`
     addAgentInstance({
-      id: `inst-${agentId}-${Date.now()}`,
+      id: instanceId,
       agentTypeId: agentId,
       name: agentName,
       modelId: DEFAULT_AGENT_TYPES.find((a) => a.id === agentId)?.defaultModelId || 'claude-sonnet-4-6',
       status: 'idle',
       createdAt: new Date(),
     })
-    setViewMode('workspace')
+    setActiveAgentInstanceId(instanceId)
+    setViewMode('agent-chat')
   }
 
   return (
@@ -161,9 +167,9 @@ export default function LandingView() {
               <Button
                 size="lg"
                 className="h-12 px-8 rounded-full bg-white text-gray-900 font-semibold text-base hover:bg-gray-100 shadow-lg shadow-white/20 transition-all"
-                onClick={() => setViewMode('workspace')}
+                onClick={() => setViewMode('agents')}
               >
-                Start Free
+                Hire Agents
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button
@@ -335,20 +341,20 @@ export default function LandingView() {
                         size="sm"
                         className={`w-full gap-1.5 rounded-lg text-xs font-semibold transition-all ${
                           alreadyAdded
-                            ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                             : 'bg-gray-900 text-white hover:bg-gray-800'
                         }`}
-                        onClick={() => handleAddToTeam(agent.id, agent.name)}
+                        onClick={() => handleHire(agent.id, agent.name)}
                       >
                         {alreadyAdded ? (
                           <>
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            In Your Team
+                            Hired
                           </>
                         ) : (
                           <>
                             <Plus className="h-3.5 w-3.5" />
-                            Add to Team
+                            Hire Agent
                           </>
                         )}
                       </Button>

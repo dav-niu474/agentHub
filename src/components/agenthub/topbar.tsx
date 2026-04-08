@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Sparkles,
   Check,
+  Bell,
 } from 'lucide-react'
 import { useAppStore, DEFAULT_MODELS } from '@/store/app-store'
 import { cn } from '@/lib/utils'
@@ -37,14 +38,11 @@ import { toast } from 'sonner'
 /** Map viewMode to a human-readable page title */
 const VIEW_MODE_TITLES: Record<string, string> = {
   landing: '',
-  workspace: 'Workspace',
   agents: 'Agent Store',
-  tasks: 'Task History',
+  'agent-chat': '',
+  tasks: 'Tasks',
   showcase: 'Showcase',
   pricing: 'Pricing',
-  compare: 'Compare',
-  history: 'History',
-  profile: 'Profile',
   settings: 'Settings',
 }
 
@@ -79,6 +77,11 @@ export function Topbar() {
     models,
     mobileMenuOpen,
     setMobileMenuOpen,
+    activeAgentInstanceId,
+    agentInstances,
+    agentTypes,
+    notifications,
+    markNotificationRead,
   } = useAppStore()
 
   const [scrolled, setScrolled] = useState(false)
@@ -101,7 +104,13 @@ export function Topbar() {
     .toUpperCase()
     .slice(0, 2)
 
-  const pageTitle = VIEW_MODE_TITLES[viewMode] ?? ''
+  const unreadNotifs = notifications.filter((n) => !n.read)
+
+  // Dynamic page title
+  const activeAgent = agentInstances.find((a) => a.id === activeAgentInstanceId)
+  const pageTitle = viewMode === 'agent-chat' && activeAgent
+    ? activeAgent.name
+    : VIEW_MODE_TITLES[viewMode] ?? ''
 
   // Current selected model
   const currentModel = models.find((m) => m.id === selectedModelId) ?? DEFAULT_MODELS[0]
@@ -115,9 +124,7 @@ export function Topbar() {
         ? 'Search tasks…'
         : viewMode === 'showcase'
           ? 'Search showcase…'
-          : viewMode === 'pricing'
-            ? 'Search plans…'
-            : 'Search…'
+          : 'Search…'
 
   return (
     <header
@@ -129,7 +136,7 @@ export function Topbar() {
           : 'bg-transparent',
       )}
     >
-      {/* ── Left: Logo + Page title ── */}
+      {/* Left: Logo + Page title */}
       <div className="flex items-center gap-3 pl-4 min-w-0">
         {/* Mobile hamburger */}
         <Button
@@ -147,7 +154,7 @@ export function Topbar() {
           Agent<span className="text-orange-500">Hub</span>
         </span>
 
-        {/* Current page title (desktop only) */}
+        {/* Current page title */}
         {pageTitle && (
           <>
             <Separator orientation="vertical" className="hidden md:block h-4" />
@@ -158,7 +165,7 @@ export function Topbar() {
         )}
       </div>
 
-      {/* ── Center: Search input (desktop only) ── */}
+      {/* Center: Search input (desktop only) */}
       <div className="hidden md:flex flex-1 justify-center px-6">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 pointer-events-none" />
@@ -176,8 +183,58 @@ export function Topbar() {
         </div>
       </div>
 
-      {/* ── Right: Model selector + Credits + User avatar ── */}
+      {/* Right: Notifications + Model + Credits + User */}
       <div className="flex items-center gap-2 pr-4 ml-auto md:ml-0">
+        {/* Notifications */}
+        {unreadNotifs.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative size-8 shrink-0">
+                <Bell className="size-4 text-gray-600" />
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  {unreadNotifs.length > 9 ? '9+' : unreadNotifs.length}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-0">
+              <div className="px-3 py-2.5 border-b border-gray-100">
+                <p className="text-sm font-semibold text-gray-900">Notifications</p>
+              </div>
+              <ScrollArea className="max-h-[300px]">
+                <div className="py-1">
+                  {unreadNotifs.slice(0, 8).map((notif) => (
+                    <button
+                      key={notif.id}
+                      type="button"
+                      onClick={() => markNotificationRead(notif.id)}
+                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
+                    >
+                      <div className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                        notif.type === 'email' ? 'bg-blue-100' : 'bg-amber-100',
+                      )}>
+                        {notif.type === 'email' ? (
+                          <Search className="h-3.5 w-3.5 text-blue-600" />
+                        ) : (
+                          <Bell className="h-3.5 w-3.5 text-amber-600" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12px] font-semibold text-gray-900 truncate">{notif.title}</p>
+                        <p className="text-[11px] text-muted-foreground line-clamp-2">{notif.message}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {notif.fromAgent && `from ${notif.fromAgent} · `}
+                          {new Date(notif.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        )}
+
         {/* Model Selector Popover */}
         <Popover open={modelPopoverOpen} onOpenChange={setModelPopoverOpen}>
           <PopoverTrigger asChild>
@@ -189,7 +246,6 @@ export function Topbar() {
                 'transition-colors duration-150',
               )}
             >
-              {/* Provider color dot */}
               <span
                 className={cn(
                   'h-2 w-2 rounded-full shrink-0',
@@ -225,12 +281,9 @@ export function Topbar() {
                       }}
                       className={cn(
                         'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-100',
-                        isActive
-                          ? 'bg-gray-50'
-                          : 'hover:bg-gray-50',
+                        isActive ? 'bg-gray-50' : 'hover:bg-gray-50',
                       )}
                     >
-                      {/* Provider color dot */}
                       <span
                         className={cn(
                           'h-3 w-3 rounded-full shrink-0',
@@ -258,14 +311,6 @@ export function Topbar() {
                               className="text-[9px] font-semibold px-1.5 py-0 h-4 bg-amber-100 text-amber-700 border-0"
                             >
                               PRO
-                            </Badge>
-                          )}
-                          {model.tier === 'enterprise' && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[9px] font-semibold px-1.5 py-0 h-4 bg-violet-100 text-violet-700 border-0"
-                            >
-                              ENT
                             </Badge>
                           )}
                         </div>
@@ -322,23 +367,14 @@ export function Topbar() {
           </DropdownMenuTrigger>
 
           <DropdownMenuContent align="end" className="w-52">
-            {/* User name header */}
             <div className="px-2 py-1.5">
               <p className="text-sm font-medium leading-none">{userName}</p>
               <p className="mt-1 text-xs text-muted-foreground truncate">
-                alex@example.com
+                {useAppStore.getState().userEmail}
               </p>
             </div>
 
             <DropdownMenuSeparator />
-
-            <DropdownMenuItem
-              onClick={() => setViewMode('profile')}
-              className="cursor-pointer"
-            >
-              <User className="size-4" />
-              Profile
-            </DropdownMenuItem>
 
             <DropdownMenuItem
               onClick={() => setViewMode('settings')}

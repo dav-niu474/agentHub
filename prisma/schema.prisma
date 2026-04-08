@@ -8,62 +8,82 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  avatar    String?
-  credits   Int      @default(100)
-  plan      String   @default("free") // free, pro, enterprise
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  chats     Chat[]
-  favorites Favorite[]
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String?
+  avatar        String?
+  credits       Int           @default(1000)
+  plan          String        @default("free") // free, pro, enterprise
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  agentInstances HiredAgent[]
+  projectTasks  ProjectTask[]
+  chatMessages  ChatMessage[]
+  notifications Notification[]
 }
 
-model AgentSkill {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  icon        String
-  category    String   // marketing, research, strategy, legal, academic, development, writing, design
-  prompt      String   // system prompt for the agent
-  isBuiltIn   Boolean  @default(true)
-  usageCount  Int      @default(0)
-  rating      Float    @default(4.5)
-  tags        String   @default("") // comma separated
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  favorites   Favorite[]
+model HiredAgent {
+  id            String   @id @default(cuid())
+  userId        String
+  agentTypeId   String   // references AgentType
+  name          String
+  provider      String
+  modelId       String
+  status        String   @default("idle") // idle, working, completed, error
+  currentTask   String?
+  hiredAt       DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
-model Chat {
-  id        String   @id @default(cuid())
-  userId    String
-  title     String   @default("New Chat")
-  agentId   String?  // which agent skill is being used
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages  Message[]
+model ChatMessage {
+  id              String   @id @default(cuid())
+  userId          String
+  agentInstanceId String
+  role            String   // user, assistant, system
+  content         String
+  messageType     String   @default("text") // text, code, file, task-update
+  fileName        String?
+  taskName        String?
+  creditsCost     Float?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, agentInstanceId])
 }
 
-model Message {
-  id        String   @id @default(cuid())
-  chatId    String
-  role      String   // user, assistant, system
-  content   String
-  agentId   String?
-  createdAt DateTime @default(now())
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+model ProjectTask {
+  id                    String   @id @default(cuid())
+  userId                String
+  title                 String
+  description           String
+  status                String   @default("pending") // pending, assigned, in-progress, review, completed, failed
+  priority              String   @default("medium") // low, medium, high, urgent
+  assignedAgentId       String?  // references HiredAgent
+  category              String   @default("general")
+  result                String?
+  resultFiles           String?  // JSON array of file names
+  creditsUsed           Float    @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  completedAt           DateTime?
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
-model Favorite {
-  id        String     @id @default(cuid())
-  userId    String
-  skillId   String
-  createdAt DateTime   @default(now())
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  skill     AgentSkill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+model Notification {
+  id              String   @id @default(cuid())
+  userId          String
+  type            String   @default("in-app") // email, in-app
+  title           String
+  message         String
+  fromAgent       String?
+  relatedTaskId   String?
+  read            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, skillId])
+  @@index([userId, read])
 }

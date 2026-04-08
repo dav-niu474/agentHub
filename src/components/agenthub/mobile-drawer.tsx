@@ -2,13 +2,13 @@
 
 import {
   House,
-  LayoutDashboard,
   Bot,
   ListChecks,
   Eye,
   CreditCard,
   Settings,
   Coins,
+  MessageSquare,
   type LucideIcon,
 } from 'lucide-react'
 import { useAppStore, type ViewMode } from '@/store/app-store'
@@ -21,6 +21,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 
 // ---------- Constants ----------
@@ -33,13 +34,48 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: House, label: 'Home', viewMode: 'landing' },
-  { icon: LayoutDashboard, label: 'Workspace', viewMode: 'workspace' },
-  { icon: Bot, label: 'Agents', viewMode: 'agents' },
+  { icon: Bot, label: 'Agent Store', viewMode: 'agents' },
   { icon: ListChecks, label: 'Tasks', viewMode: 'tasks' },
   { icon: Eye, label: 'Showcase', viewMode: 'showcase' },
   { icon: CreditCard, label: 'Pricing', viewMode: 'pricing' },
   { icon: Settings, label: 'Settings', viewMode: 'settings' },
 ]
+
+const PROVIDER_COLORS: Record<string, string> = {
+  anthropic: 'bg-orange-500',
+  openai: 'bg-emerald-500',
+  google: 'bg-blue-500',
+  deepseek: 'bg-cyan-600',
+  meta: 'bg-violet-500',
+  cursor: 'bg-indigo-500',
+  'open source': 'bg-teal-500',
+  teamo: 'bg-rose-500',
+}
+
+const PROVIDER_LETTERS: Record<string, string> = {
+  anthropic: 'AC',
+  openai: 'OA',
+  google: 'GO',
+  deepseek: 'DS',
+  meta: 'ME',
+  cursor: 'CU',
+  'open source': 'OC',
+  teamo: 'TM',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  idle: 'bg-gray-300',
+  working: 'bg-emerald-500 animate-pulse',
+  completed: 'bg-blue-400',
+  error: 'bg-red-500',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  idle: 'Idle',
+  working: 'Working',
+  completed: 'Completed',
+  error: 'Error',
+}
 
 // ---------- Main Component ----------
 
@@ -50,8 +86,11 @@ export default function MobileDrawer() {
   const setViewMode = useAppStore((s) => s.setViewMode)
   const userCredits = useAppStore((s) => s.userCredits)
   const userName = useAppStore((s) => s.userName)
+  const agentInstances = useAppStore((s) => s.agentInstances)
+  const agentTypes = useAppStore((s) => s.agentTypes)
+  const activeAgentInstanceId = useAppStore((s) => s.activeAgentInstanceId)
+  const setActiveAgentInstanceId = useAppStore((s) => s.setActiveAgentInstanceId)
 
-  // Derive user initials
   const initials = userName
     .split(' ')
     .map((n) => n[0])
@@ -64,12 +103,28 @@ export default function MobileDrawer() {
     setMobileMenuOpen(false)
   }
 
+  const handleAgentClick = (instanceId: string) => {
+    setActiveAgentInstanceId(instanceId)
+    setViewMode('agent-chat')
+    setMobileMenuOpen(false)
+  }
+
+  // Resolve hired agents
+  const hiredAgents = agentInstances.map((instance) => {
+    const agentType = agentTypes.find((t) => t.id === instance.agentTypeId)
+    return {
+      id: instance.id,
+      name: instance.name,
+      provider: agentType?.provider || 'Teamo',
+      status: instance.status,
+    }
+  })
+
   return (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="px-5 pt-6 pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900">
-            {/* Logo */}
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-slate-600">
               <span className="text-white text-xs font-bold">AH</span>
             </div>
@@ -79,7 +134,7 @@ export default function MobileDrawer() {
 
         <Separator />
 
-        {/* ── Navigation Items ── */}
+        {/* Navigation Items */}
         <nav className="flex flex-col gap-0.5 px-3 py-3">
           {NAV_ITEMS.map((item) => {
             const isActive = viewMode === item.viewMode
@@ -103,9 +158,52 @@ export default function MobileDrawer() {
           })}
         </nav>
 
+        {/* Hired Agents Section */}
+        {hiredAgents.length > 0 && (
+          <>
+            <Separator />
+            <div className="px-5 py-3">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+                My Agents ({hiredAgents.length})
+              </p>
+              <ScrollArea className="max-h-[200px]">
+                <div className="space-y-1">
+                  {hiredAgents.map((agent) => {
+                    const providerLower = agent.provider.toLowerCase()
+                    const bgColor = PROVIDER_COLORS[providerLower] || 'bg-gray-500'
+                    const letter = PROVIDER_LETTERS[providerLower] || agent.name.slice(0, 2).toUpperCase()
+                    const statusColor = STATUS_COLORS[agent.status] || STATUS_COLORS.idle
+                    const isActive = viewMode === 'agent-chat' && activeAgentInstanceId === agent.id
+
+                    return (
+                      <Button
+                        key={agent.id}
+                        variant="ghost"
+                        onClick={() => handleAgentClick(agent.id)}
+                        className={cn(
+                          'w-full justify-start gap-3 h-10 px-3 rounded-lg text-sm transition-all',
+                          isActive
+                            ? 'bg-slate-900 text-white hover:bg-slate-800 hover:text-white'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                        )}
+                      >
+                        <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0', bgColor)}>
+                          {letter}
+                        </span>
+                        <span className="truncate">{agent.name}</span>
+                        <span className={cn('ml-auto h-2 w-2 rounded-full shrink-0', statusColor)} />
+                      </Button>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </>
+        )}
+
         <Separator />
 
-        {/* ── Bottom Section ── */}
+        {/* Bottom Section */}
         <div className="mt-auto px-5 py-4 space-y-4">
           {/* Credits display */}
           <div className="flex items-center gap-2 text-sm">
@@ -130,7 +228,7 @@ export default function MobileDrawer() {
                 {userName}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                alex@example.com
+                {useAppStore.getState().userEmail}
               </p>
             </div>
           </div>

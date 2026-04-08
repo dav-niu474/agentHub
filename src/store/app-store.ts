@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewMode = 'landing' | 'workspace' | 'agents' | 'tasks' | 'showcase' | 'pricing' | 'compare' | 'history' | 'profile' | 'settings'
+export type ViewMode = 'landing' | 'agents' | 'agent-chat' | 'tasks' | 'showcase' | 'pricing' | 'settings'
 
 // ==================== Type Definitions ====================
 
@@ -17,7 +17,7 @@ export interface AIModel {
 export interface AgentType {
   id: string
   name: string
-  provider: string // claude-code, codex, openclaw, cursor, etc.
+  provider: string
   description: string
   icon: string
   category: 'coding' | 'research' | 'creative' | 'automation' | 'strategy'
@@ -33,31 +33,39 @@ export interface AgentInstance {
   agentTypeId: string
   name: string
   modelId: string
-  status: 'idle' | 'working' | 'paused' | 'completed' | 'error'
+  status: 'idle' | 'working' | 'completed' | 'error'
   currentTask?: string
   createdAt: Date
 }
 
-export interface TaskNode {
+export interface ChatMessage {
   id: string
-  goal: string
-  status: 'pending' | 'planning' | 'executing' | 'reviewing' | 'completed' | 'failed'
   agentInstanceId: string
-  parentId?: string
-  children: TaskNode[]
-  actions: TaskAction[]
-  creditsUsed: number
-  startedAt?: Date
-  completedAt?: Date
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  metadata?: {
+    type?: 'text' | 'code' | 'file' | 'task-update'
+    fileName?: string
+    taskName?: string
+    creditsCost?: number
+  }
 }
 
-export interface TaskAction {
+export interface ProjectTask {
   id: string
-  type: 'think' | 'plan' | 'code' | 'research' | 'review' | 'file_op' | 'command' | 'error'
+  title: string
   description: string
-  detail?: string
-  timestamp: Date
-  creditsCost: number
+  status: 'pending' | 'assigned' | 'in-progress' | 'review' | 'completed' | 'failed'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  assignedAgentInstanceId?: string
+  category: string
+  createdAt: Date
+  updatedAt: Date
+  completedAt?: Date
+  creditsUsed: number
+  result?: string
+  resultFiles?: string[]
 }
 
 export interface ShowcaseItem {
@@ -78,6 +86,17 @@ export interface PlanTier {
   popular?: boolean
 }
 
+export interface Notification {
+  id: string
+  type: 'email' | 'in-app'
+  title: string
+  message: string
+  fromAgent?: string
+  relatedTaskId?: string
+  read: boolean
+  timestamp: Date
+}
+
 // ==================== App State ====================
 
 interface AppState {
@@ -94,18 +113,30 @@ interface AppState {
   agentTypes: AgentType[]
   setAgentTypes: (types: AgentType[]) => void
 
-  // Agent Instances (user's running agents)
+  // Agent Instances (hired agents)
   agentInstances: AgentInstance[]
   addAgentInstance: (instance: AgentInstance) => void
   removeAgentInstance: (id: string) => void
   updateAgentInstance: (id: string, updates: Partial<AgentInstance>) => void
 
-  // Tasks / Goal execution
-  activeGoal: string
-  setActiveGoal: (goal: string) => void
-  taskTree: TaskNode | null
-  setTaskTree: (tree: TaskNode | null) => void
-  updateTaskNode: (taskId: string, updates: Partial<TaskNode>) => void
+  // Active agent chat (which agent's workspace we're viewing)
+  activeAgentInstanceId: string | null
+  setActiveAgentInstanceId: (id: string | null) => void
+
+  // Chat messages per agent
+  chatMessages: ChatMessage[]
+  addChatMessage: (message: ChatMessage) => void
+
+  // Project tasks
+  projectTasks: ProjectTask[]
+  addProjectTask: (task: ProjectTask) => void
+  updateProjectTask: (id: string, updates: Partial<ProjectTask>) => void
+  removeProjectTask: (id: string) => void
+
+  // Notifications
+  notifications: Notification[]
+  addNotification: (notification: Notification) => void
+  markNotificationRead: (id: string) => void
 
   // Showcase
   showcaseItems: ShowcaseItem[]
@@ -119,16 +150,18 @@ interface AppState {
   setUserCredits: (credits: number) => void
   userName: string
   setUserName: (name: string) => void
+  userEmail: string
+  setUserEmail: (email: string) => void
 
   // UI
-  sidebarCollapsed: boolean
-  setSidebarCollapsed: (collapsed: boolean) => void
   mobileMenuOpen: boolean
   setMobileMenuOpen: (open: boolean) => void
   searchQuery: string
   setSearchQuery: (query: string) => void
   selectedAgentCategory: string
   setSelectedAgentCategory: (category: string) => void
+  taskFilter: string
+  setTaskFilter: (filter: string) => void
 }
 
 // ==================== Default Data ====================
@@ -307,24 +340,35 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   agentInstances: [],
   addAgentInstance: (instance) => set((state) => ({ agentInstances: [...state.agentInstances, instance] })),
-  removeAgentInstance: (id) => set((state) => ({ agentInstances: state.agentInstances.filter((a) => a.id !== id) })),
+  removeAgentInstance: (id) => set((state) => ({
+    agentInstances: state.agentInstances.filter((a) => a.id !== id),
+    chatMessages: state.chatMessages.filter((m) => m.agentInstanceId !== id),
+    activeAgentInstanceId: state.activeAgentInstanceId === id ? null : state.activeAgentInstanceId,
+  })),
   updateAgentInstance: (id, updates) => set((state) => ({
     agentInstances: state.agentInstances.map((a) => a.id === id ? { ...a, ...updates } : a),
   })),
 
-  activeGoal: '',
-  setActiveGoal: (goal) => set({ activeGoal: goal }),
-  taskTree: null,
-  setTaskTree: (tree) => set({ taskTree: tree }),
-  updateTaskNode: (taskId, updates) => {
-    const { taskTree } = get()
-    if (!taskTree) return
-    const updateInTree = (node: TaskNode): TaskNode => {
-      if (node.id === taskId) return { ...node, ...updates }
-      return { ...node, children: node.children.map(updateInTree) }
-    }
-    set({ taskTree: updateInTree(taskTree) })
-  },
+  activeAgentInstanceId: null,
+  setActiveAgentInstanceId: (id) => set({ activeAgentInstanceId: id }),
+
+  chatMessages: [],
+  addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
+
+  projectTasks: [],
+  addProjectTask: (task) => set((state) => ({ projectTasks: [...state.projectTasks, task] })),
+  updateProjectTask: (id, updates) => set((state) => ({
+    projectTasks: state.projectTasks.map((t) => t.id === id ? { ...t, ...updates, updatedAt: new Date() } : t),
+  })),
+  removeProjectTask: (id) => set((state) => ({
+    projectTasks: state.projectTasks.filter((t) => t.id !== id),
+  })),
+
+  notifications: [],
+  addNotification: (notification) => set((state) => ({ notifications: [notification, ...state.notifications] })),
+  markNotificationRead: (id) => set((state) => ({
+    notifications: state.notifications.map((n) => n.id === id ? { ...n, read: true } : n),
+  })),
 
   showcaseItems: DEFAULT_SHOWCASE,
   setShowcaseItems: (items) => set({ showcaseItems: items }),
@@ -335,13 +379,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setUserCredits: (credits) => set({ userCredits: credits }),
   userName: 'Alex Chen',
   setUserName: (name) => set({ userName: name }),
+  userEmail: 'alex@example.com',
+  setUserEmail: (email) => set({ userEmail: email }),
 
-  sidebarCollapsed: false,
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   mobileMenuOpen: false,
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
   selectedAgentCategory: 'all',
   setSelectedAgentCategory: (category) => set({ selectedAgentCategory: category }),
+  taskFilter: 'all',
+  setTaskFilter: (filter) => set({ taskFilter: filter }),
 }))

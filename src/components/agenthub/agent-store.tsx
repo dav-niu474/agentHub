@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Filter,
   ChevronDown,
+  CheckCircle2,
 } from 'lucide-react'
 import { useAppStore, DEFAULT_AGENT_TYPES, DEFAULT_MODELS, type AgentType } from '@/store/app-store'
 import { cn } from '@/lib/utils'
@@ -217,7 +218,7 @@ function LoadingSkeleton() {
 
 // ==================== Agent Card ====================
 
-function AgentCard({ agent, onAddToTeam }: { agent: AgentType; onAddToTeam: (agent: AgentType) => void }) {
+function AgentCard({ agent, onHire, alreadyHired }: { agent: AgentType; onHire: (agent: AgentType) => void; alreadyHired: boolean }) {
   const isComingSoon = agent.status === 'coming-soon'
 
   return (
@@ -276,18 +277,24 @@ function AgentCard({ agent, onAddToTeam }: { agent: AgentType; onAddToTeam: (age
         <Button
           size="sm"
           disabled={isComingSoon}
-          onClick={() => onAddToTeam(agent)}
+          onClick={() => onHire(agent)}
           className={cn(
             'gap-1.5 shrink-0 font-medium transition-all',
-            !isComingSoon && 'group-hover:gap-2',
+            alreadyHired && !isComingSoon && 'bg-emerald-600 hover:bg-emerald-700',
+            !isComingSoon && !alreadyHired && 'group-hover:gap-2',
           )}
         >
           {isComingSoon ? (
             'Coming Soon'
+          ) : alreadyHired ? (
+            <>
+              <CheckCircle2 className="size-3.5" />
+              Hired
+            </>
           ) : (
             <>
               <Plus className="size-3.5" />
-              Add to Team
+              Hire Agent
             </>
           )}
         </Button>
@@ -326,9 +333,10 @@ export default function AgentStore() {
     setSearchQuery,
     selectedAgentCategory,
     setSelectedAgentCategory,
+    agentInstances,
     addAgentInstance,
-    setActiveGoal,
     setViewMode,
+    setActiveAgentInstanceId,
   } = useAppStore()
 
   const [loading, setLoading] = useState(true)
@@ -376,8 +384,20 @@ export default function AgentStore() {
     return counts
   }, [agentTypes])
 
-  const handleAddToTeam = useCallback(
+  // Check if an agent type is already hired
+  const isHired = useCallback(
+    (agentTypeId: string) => agentInstances.some((inst) => inst.agentTypeId === agentTypeId),
+    [agentInstances],
+  )
+
+  const handleHire = useCallback(
     (agent: AgentType) => {
+      if (isHired(agent.id)) {
+        toast.info(`${agent.name} is already hired`, {
+          description: 'Find it in the left sidebar to start chatting.',
+        })
+        return
+      }
       const instanceId = `${agent.id}-${Date.now()}`
       addAgentInstance({
         id: instanceId,
@@ -387,20 +407,21 @@ export default function AgentStore() {
         status: 'idle',
         createdAt: new Date(),
       })
-      toast.success(`${agent.name} added to team!`, {
-        description: `Switching to workspace with ${agent.name} using ${DEFAULT_MODELS.find((m) => m.id === agent.defaultModelId)?.name || agent.defaultModelId}.`,
+      setActiveAgentInstanceId(instanceId)
+      toast.success(`${agent.name} hired!`, {
+        description: `${agent.name} is now available in the sidebar. Click to start chatting.`,
         action: {
-          label: 'Go to Workspace',
+          label: 'Start Chat',
           onClick: () => {
-            setActiveGoal('')
-            setViewMode('workspace')
+            setActiveAgentInstanceId(instanceId)
+            setViewMode('agent-chat')
           },
         },
       })
-      setActiveGoal('')
-      setViewMode('workspace')
+      setActiveAgentInstanceId(instanceId)
+      setViewMode('agent-chat')
     },
-    [addAgentInstance, setActiveGoal, setViewMode],
+    [addAgentInstance, setActiveAgentInstanceId, setViewMode, isHired],
   )
 
   return (
@@ -419,7 +440,7 @@ export default function AgentStore() {
             </div>
           </div>
           <p className="text-sm md:text-base text-muted-foreground ml-[52px] max-w-xl">
-            Build your AI agent team. Choose from powerful agents for coding, research, automation, and more.
+            Hire AI agents for your projects. Hired agents appear in the sidebar — click to chat and assign tasks.
           </p>
         </div>
 
@@ -506,7 +527,7 @@ export default function AgentStore() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredAgents.map((agent) => (
-              <AgentCard key={agent.id} agent={agent} onAddToTeam={handleAddToTeam} />
+              <AgentCard key={agent.id} agent={agent} onHire={handleHire} alreadyHired={isHired(agent.id)} />
             ))}
           </div>
         )}

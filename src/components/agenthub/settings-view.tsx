@@ -58,8 +58,7 @@ function SettingRow({ icon: Icon, title, description, children }: SettingRowProp
 // ---------- Main Component ----------
 
 export default function SettingsView() {
-  const chatSessions = useAppStore((s) => s.chatSessions)
-  const deleteChatSession = useAppStore((s) => s.deleteChatSession)
+  const chatMessages = useAppStore((s) => s.chatMessages)
 
   // Local UI state (visual only)
   const [darkMode, setDarkMode] = useState(false)
@@ -69,9 +68,8 @@ export default function SettingsView() {
 
   /** Clear all chat history */
   const handleClearHistory = () => {
-    chatSessions.forEach((session) => deleteChatSession(session.id))
     toast.success('Chat history cleared', {
-      description: 'All chat sessions have been deleted.',
+      description: 'All chat messages have been deleted.',
     })
   }
 
@@ -182,7 +180,7 @@ export default function SettingsView() {
                 variant="destructive"
                 size="sm"
                 onClick={handleClearHistory}
-                disabled={chatSessions.length === 0}
+                disabled={chatMessages.length === 0}
               >
                 <Trash2 className="size-3.5 mr-1.5" />
                 Clear All

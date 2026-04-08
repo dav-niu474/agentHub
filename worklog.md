@@ -212,3 +212,79 @@ Stage Summary:
 - Tasks view features: 6 demo tasks, status filtering, expandable subtask lists, progress bars, agent team display
 - Consistent design language with existing components (rounded-xl cards, gray-100 borders, gradient accents)
 - ESLint passes with zero errors, HTTP 200 confirmed on dev server
+
+---
+Task ID: 7
+Agent: Main Orchestrator
+Task: Redesign platform for Agent Hiring + Multi-Agent Collaboration workflow
+
+Work Log:
+- Completely rewrote app-store.ts with new architecture:
+  - ViewMode: landing | agents | agent-chat | tasks | showcase | pricing | settings
+  - Added activeAgentInstanceId, setActiveAgentInstanceId for tracking which agent's chat is open
+  - Added chatMessages array with addChatMessage for per-agent chat history
+  - Added projectTasks array with full CRUD (addProjectTask, updateProjectTask, removeProjectTask)
+  - Added notifications array with addNotification, markNotificationRead
+  - Added ProjectTask type with status/priority/category/assignment/result fields
+  - Added ChatMessage type with metadata (type, fileName, taskName, creditsCost)
+  - Added Notification type with email/in-app support
+  - Removed old workspace-related state (activeGoal, taskTree, updateTaskNode, etc.)
+- Rewrote Prisma schema: HiredAgent, ChatMessage, ProjectTask, Notification models (SQLite)
+- Pushed DB schema, generated Prisma client
+- Rewrote sidebar.tsx:
+  - Nav items: Home, Agents, Tasks, Showcase, Pricing
+  - "My Agents" section showing all hired agents with provider-colored circles and status dots
+  - Click agent → setActiveAgentInstanceId + switch to 'agent-chat' view
+  - Active state: ring-2 ring-slate-900 when that agent's chat is open
+  - "Hire" button at bottom → navigate to agents store
+- Created new agent-chat.tsx (Agent Chat Workspace):
+  - Chat interface with message bubbles (user/assistant/system)
+  - Empty state with suggestion prompts
+  - Typing indicator with bouncing dots
+  - Agent info panel (toggle with MoreHorizontal button)
+  - Per-agent context: messages filtered by agentInstanceId
+  - Assigned tasks display in info panel
+  - Message actions: copy, credits display
+  - Simulated agent responses based on agent type
+  - Auto-detection of task requests in messages
+- Rewrote tasks-view.tsx (Task Board):
+  - Create Task Dialog with title, description, priority, category, agent assignment
+  - Smart Assignment hint showing category-agent match
+  - Task cards with status badges, progress bars, assigned agent display
+  - Click assigned agent → navigate to agent chat
+  - "Simulate Complete" button for demo workflow
+  - Email notification simulation on task completion (toast + notification in store)
+  - Notification panel showing unread notifications
+  - Task lifecycle: pending → assigned → in-progress → review → completed
+  - Filter by status: all, pending, assigned, in-progress, review, completed, failed
+- Updated agent-store.tsx:
+  - "Hire Agent" button (was "Add to Team")
+  - "Hired" badge (green) when agent type is already hired
+  - isHired() callback checking agentInstances
+  - handleHire() creates instance + sets activeAgentInstanceId + navigates to agent-chat
+  - Duplicate hire prevention with toast notification
+- Updated topbar.tsx:
+  - Notification bell with unread count badge
+  - Notification popover showing email/in-app notifications
+  - Dynamic page title (shows agent name when in agent-chat view)
+  - Removed profile viewMode reference
+- Updated mobile-drawer.tsx:
+  - "My Agents" section showing all hired agents with clickable entries
+  - Click agent → handleAgentClick (setActiveAgentInstanceId + agent-chat + close drawer)
+- Updated landing-view.tsx:
+  - "Hire Agents" CTA (was "Start Free")
+  - "Hire Agent" button on featured agent cards (was "Add to Team")
+  - "Hired" green badge when agent is already hired
+  - handleHire() sets activeAgentInstanceId and navigates to agent-chat
+  - Updated "How it Works" steps: "Hire AI Agents" → "Chat & Assign Tasks" → "Get Results via Email"
+- Updated settings-view.tsx: fixed chatSessions → chatMessages reference
+- Updated page.tsx: 7 view modes (removed workspace, history, profile, compare)
+
+Stage Summary:
+- Complete multi-agent hiring and collaboration platform implemented
+- Core flow: Hire agents → Chat with agents → Create tasks → Assign to agents → Get results via email
+- 10 agent types available for hiring (Claude Code, Codex, OpenClaw, etc.)
+- Per-agent chat workspaces with simulated AI responses
+- Task management with smart assignment and email notifications
+- All notifications tracked in store with read/unread state
+- ESLint passes with zero errors, HTTP 200 on main route
