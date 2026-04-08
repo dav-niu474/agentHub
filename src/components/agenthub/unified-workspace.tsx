@@ -51,6 +51,7 @@ import { Progress } from '@/components/ui/progress'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { MarkdownRenderer } from './markdown-renderer'
 import {
   useAppStore,
   DEFAULT_AGENT_TYPES,
@@ -76,6 +77,30 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+
+// ==================== Workspace Persistence Helpers ====================
+
+async function saveWorkspaceMsgToDB(role: string, content: string, phase?: string) {
+  try {
+    await fetch('/api/chat/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, content, phase }),
+    })
+  } catch {
+    // Silently fail
+  }
+}
+
+async function loadWorkspaceMsgsFromDB(): Promise<Array<{ id: string; role: string; content: string; messageType: string; createdAt: string }>> {
+  try {
+    const res = await fetch('/api/chat/workspace')
+    if (res.ok) return await res.json()
+  } catch {
+    // Silently fail
+  }
+  return []
+}
 
 // ==================== Constants ====================
 
@@ -211,11 +236,11 @@ function PhasePipeline({ currentPhase }: { currentPhase: WorkspacePhase }) {
             <div className="flex flex-col items-center gap-1 min-w-[52px]">
               <div
                 className={cn(
-                  'flex h-7 w-7 items-center justify-center rounded-full transition-all duration-500',
+                  'flex h-7 w-7 items-center justify-center rounded-full transition-all duration-500 ease-out',
                   isActive
                     ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/30 scale-110'
                     : isCompleted
-                      ? 'bg-emerald-500 text-white shadow-md'
+                      ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
                       : 'bg-gray-100 text-gray-400',
                 )}
               >
@@ -237,8 +262,8 @@ function PhasePipeline({ currentPhase }: { currentPhase: WorkspacePhase }) {
             {index < PHASE_STEPS.length - 1 && (
               <div
                 className={cn(
-                  'h-[2px] w-4 mx-1 mb-4 rounded-full transition-colors duration-500',
-                  index < phaseIndex ? 'bg-emerald-400' : 'bg-gray-200',
+                  'h-[2px] w-4 mx-1 mb-4 rounded-full transition-all duration-500',
+                  index < phaseIndex ? 'bg-emerald-400 w-5' : 'bg-gray-200',
                 )}
               />
             )}
@@ -305,13 +330,17 @@ function WorkspaceChatBubble({ message }: { message: WorkspaceMessage }) {
 
         <div
           className={cn(
-            'relative rounded-2xl px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words',
+            'relative rounded-2xl px-4 py-3 text-[14px] leading-relaxed break-words',
             isUser
               ? 'bg-slate-900 text-white rounded-br-md'
               : 'bg-gray-100 text-gray-800 rounded-bl-md',
           )}
         >
-          {message.content}
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <MarkdownRenderer content={message.content} variant={isUser ? 'dark' : 'light'} />
+          )}
         </div>
 
         <div className={cn('flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity', isUser && 'flex-row-reverse')}>
@@ -780,10 +809,10 @@ function PlanPanel({
       {/* Plan header */}
       <div className="px-4 py-3 border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-slate-700 to-slate-900">
             <ClipboardList className="h-3.5 w-3.5 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900">Task Plan</p>
             <p className="text-[10px] text-muted-foreground">{plan.tasks.length} tasks · Review & confirm</p>
           </div>
@@ -915,16 +944,33 @@ export default function UnifiedWorkspace() {
     }
   }, [workspaceMessages.length, isProcessing])
 
-  // Welcome message
+  // Load persisted workspace messages from database on mount
+  const wsLoadedRef = useRef(false)
   useEffect(() => {
-    if (workspaceMessages.length === 0) {
-      addWorkspaceMessage({
-        id: `ws-welcome-${Date.now()}`,
-        role: 'system',
-        content: 'AI Coordinator ready. Describe your project and I\'ll help you plan and execute it.',
-        timestamp: new Date(),
-      })
-    }
+    if (wsLoadedRef.current) return
+    wsLoadedRef.current = true
+
+    loadWorkspaceMsgsFromDB().then((dbMessages) => {
+      if (dbMessages.length > 0 && workspaceMessages.length === 0) {
+        for (const msg of dbMessages) {
+          const phaseMatch = msg.messageType?.match(/^phase-(\w+)/)
+          addWorkspaceMessage({
+            id: msg.id,
+            role: msg.role as 'user' | 'assistant' | 'system',
+            content: msg.content,
+            timestamp: new Date(msg.createdAt),
+            phase: (phaseMatch?.[1] as WorkspacePhase) || undefined,
+          })
+        }
+      } else if (workspaceMessages.length === 0) {
+        addWorkspaceMessage({
+          id: `ws-welcome-${Date.now()}`,
+          role: 'system',
+          content: 'AI Coordinator ready. Describe your project and I\'ll help you plan and execute it.',
+          timestamp: new Date(),
+        })
+      }
+    })
   }, [])
 
   // Simulate agent task execution
@@ -948,6 +994,7 @@ export default function UnifiedWorkspace() {
     addWorkspaceMessage(userMsg)
     setInputValue('')
     setIsProcessing(true)
+    saveWorkspaceMsgToDB('user', inputValue.trim(), workspacePhase)
 
     try {
       const response = await fetch('/api/workspace/chat', {
@@ -994,6 +1041,7 @@ export default function UnifiedWorkspace() {
         phase: data.phase || workspacePhase,
       }
       addWorkspaceMessage(aiMsg)
+      saveWorkspaceMsgToDB('assistant', data.message, data.phase || workspacePhase)
     } catch {
       addWorkspaceMessage({
         id: `ws-error-${Date.now()}`,
@@ -1129,6 +1177,9 @@ export default function UnifiedWorkspace() {
     clearWorkspaceMessages()
     setCurrentPlan(null)
     setInputValue('')
+    wsLoadedRef.current = false
+    // Clear persisted workspace messages from DB
+    fetch('/api/chat/workspace', { method: 'DELETE' }).catch(() => {})
     toast.info('Workspace reset')
   }, [clearWorkspaceMessages, setCurrentPlan])
 

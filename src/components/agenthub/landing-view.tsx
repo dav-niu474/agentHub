@@ -49,11 +49,11 @@ const PROVIDER_COLORS: Record<string, { bg: string; text: string; border: string
 }
 
 const CATEGORY_BADGE_COLORS: Record<string, string> = {
-  coding: 'bg-blue-50 text-blue-600 border-blue-200',
-  research: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-  creative: 'bg-pink-50 text-pink-600 border-pink-200',
-  automation: 'bg-violet-50 text-violet-600 border-violet-200',
-  strategy: 'bg-amber-50 text-amber-600 border-amber-200',
+  coding: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+  research: 'bg-sky-50 text-sky-600 border border-sky-200',
+  creative: 'bg-pink-50 text-pink-600 border border-pink-200',
+  automation: 'bg-violet-50 text-violet-600 border border-violet-200',
+  strategy: 'bg-amber-50 text-amber-600 border border-amber-200',
 }
 
 // ---------- Featured agents ----------
@@ -85,7 +85,8 @@ const STEPS: { icon: LucideIcon; title: string; description: string }[] = [
 const TRUSTED_LOGOS = [
   { name: 'Anthropic', className: 'text-orange-600' },
   { name: 'OpenAI', className: 'text-emerald-600' },
-  { name: 'Google DeepSeek', className: 'text-sky-600' },
+  { name: 'NVIDIA', className: 'text-green-600' },
+  { name: 'DeepSeek', className: 'text-cyan-600' },
   { name: 'Meta', className: 'text-slate-600' },
 ]
 
@@ -114,7 +115,7 @@ export default function LandingView() {
       id: instanceId,
       agentTypeId: agentId,
       name: agentName,
-      modelId: DEFAULT_AGENT_TYPES.find((a) => a.id === agentId)?.defaultModelId || 'claude-sonnet-4-6',
+      modelId: DEFAULT_AGENT_TYPES.find((a) => a.id === agentId)?.defaultModelId || 'glm-5',
       status: 'idle',
       createdAt: new Date(),
     })
@@ -125,9 +126,9 @@ export default function LandingView() {
 
   return (
     <ScrollArea className="h-full">
-      <div className="flex flex-col">
+      <div className="flex flex-col min-h-screen">
         {/* ========== HERO SECTION ========== */}
-        <section className="relative flex items-center justify-center overflow-hidden" style={{ minHeight: '75vh' }}>
+        <section className="relative flex items-center justify-center overflow-hidden" style={{ minHeight: '78vh' }}>
           {/* Background Image */}
           <div className="absolute inset-0 z-0">
             <Image
@@ -145,14 +146,14 @@ export default function LandingView() {
             {/* Badge */}
             <Badge
               variant="secondary"
-              className="mb-8 px-4 py-1.5 text-sm font-medium bg-white/10 text-white/90 border-white/20 backdrop-blur-sm"
+              className="mb-8 px-4 py-1.5 text-sm font-medium bg-white/10 text-white/90 border-white/20 backdrop-blur-sm hover:bg-white/15 transition-colors"
             >
               <Zap className="h-3.5 w-3.5 mr-1.5 text-amber-400" />
               AI Multi-Agent Orchestration Platform
             </Badge>
 
             {/* Heading */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.08] tracking-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.05] tracking-tighter mb-6">
               Your 7×24 AI{' '}
               <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-300 bg-clip-text text-transparent">
                 Computer
@@ -160,7 +161,7 @@ export default function LandingView() {
             </h1>
 
             {/* Subheading */}
-            <p className="text-lg md:text-xl text-gray-300 max-w-2xl leading-relaxed mb-10">
+            <p className="text-lg md:text-xl text-gray-300 max-w-2xl leading-relaxed mb-10 text-balance">
               Deploy Claude Code, Codex, OpenClaw, and more. Cloud-hosted AI agents work
               autonomously 24/7. You rest, they never stop.
             </p>
@@ -169,7 +170,7 @@ export default function LandingView() {
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <Button
                 size="lg"
-                className="h-12 px-8 rounded-full bg-white text-gray-900 font-bold text-base hover:bg-gray-50 shadow-xl shadow-white/10 transition-all hover:scale-[1.02]"
+                className="h-12 px-8 rounded-full bg-white text-gray-900 font-bold text-base hover:bg-gray-50 shadow-xl shadow-white/10 transition-all duration-200 hover:scale-[1.02] hover:shadow-2xl"
                 onClick={() => setViewMode('workspace')}
               >
                 Open Workspace
@@ -178,7 +179,7 @@ export default function LandingView() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 px-8 rounded-full border-white/25 text-white font-semibold text-base hover:bg-white/10 hover:border-white/40 transition-all"
+                className="h-12 px-8 rounded-full border-white/25 text-white font-semibold text-base hover:bg-white/10 hover:border-white/40 transition-all duration-200"
                 onClick={() => setViewMode('showcase')}
               >
                 View Showcase
@@ -190,11 +191,11 @@ export default function LandingView() {
             <div className="flex items-center justify-center gap-10 sm:gap-14 md:gap-20 mt-16">
               {[
                 { value: '10+', label: 'AI Agents' },
-                { value: '8', label: 'AI Models' },
+                { value: '11', label: 'AI Models' },
                 { value: '10K+', label: 'Active Users' },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <p className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">{stat.value}</p>
+                  <p className="text-3xl md:text-4xl font-black text-white tracking-tight">{stat.value}</p>
                   <p className="text-xs md:text-sm text-gray-400 mt-1 font-medium">{stat.label}</p>
                 </div>
               ))}
@@ -203,16 +204,16 @@ export default function LandingView() {
         </section>
 
         {/* ========== TRUSTED BY SECTION ========== */}
-        <section className="py-14 px-4 border-b border-gray-100">
+        <section className="py-16 px-4 border-b border-gray-100">
           <div className="max-w-6xl mx-auto text-center">
             <p className="text-sm font-medium text-gray-400 uppercase tracking-widest mb-8">
-              Trusted by 5,000+ teams worldwide
+              Powered by the best AI providers
             </p>
-            <div className="flex items-center justify-center gap-10 sm:gap-16 flex-wrap">
+            <div className="flex items-center justify-center gap-8 sm:gap-14 flex-wrap">
               {TRUSTED_LOGOS.map((logo) => (
                 <span
                   key={logo.name}
-                  className={`text-lg sm:text-xl font-bold tracking-tight ${logo.className} opacity-70 hover:opacity-100 transition-opacity`}
+                  className={`text-lg sm:text-xl font-bold tracking-tight ${logo.className} opacity-60 hover:opacity-100 transition-opacity duration-300 cursor-default`}
                 >
                   {logo.name}
                 </span>
@@ -222,10 +223,10 @@ export default function LandingView() {
         </section>
 
         {/* ========== HOW IT WORKS SECTION ========== */}
-        <section className="py-20 px-4">
+        <section className="py-24 px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
                 Get started in 3 steps
               </h2>
               <p className="mt-3 text-muted-foreground text-lg max-w-xl mx-auto">
@@ -239,17 +240,17 @@ export default function LandingView() {
                 return (
                   <Card
                     key={step.title}
-                    className="group rounded-xl border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 py-0 relative"
+                    className="group rounded-2xl border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1.5 transition-all duration-300 py-0 relative"
                   >
                     {/* Step number */}
-                    <div className="absolute -top-3 -left-3 flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-white text-xs font-bold">
+                    <div className="absolute -top-3 -left-3 flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-white text-xs font-bold shadow-md">
                       {index + 1}
                     </div>
                     <CardContent className="p-6">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-600 mb-5 transition-transform group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-500 mb-5 transition-all duration-300 group-hover:scale-110 group-hover:bg-slate-900 group-hover:text-white group-hover:shadow-lg group-hover:shadow-slate-900/20">
                         <Icon className="h-6 w-6" />
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
                         {step.title}
                       </h3>
                       <p className="text-sm text-muted-foreground leading-relaxed">
@@ -264,11 +265,11 @@ export default function LandingView() {
         </section>
 
         {/* ========== FEATURED AGENTS SECTION ========== */}
-        <section className="py-20 px-4 bg-gray-50/80">
+        <section className="py-24 px-4 bg-gray-50/80">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-10">
+            <div className="flex items-end justify-between mb-12">
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+                <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
                   Powerful AI Agents
                 </h2>
                 <p className="mt-3 text-muted-foreground text-lg">
@@ -277,7 +278,7 @@ export default function LandingView() {
               </div>
               <Button
                 variant="ghost"
-                className="hidden sm:flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="hidden sm:flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 onClick={() => setViewMode('agents')}
               >
                 View All Agents
@@ -293,12 +294,12 @@ export default function LandingView() {
                 return (
                   <Card
                     key={agent.id}
-                    className="group rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 py-0"
+                    className="group rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 py-0"
                   >
                     <CardContent className="p-5 flex flex-col h-full">
                       {/* Agent icon + status */}
                       <div className="flex items-start justify-between mb-4">
-                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${colors.icon} text-white shadow-sm`}>
+                        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${colors.icon} text-white shadow-sm transition-transform duration-300 group-hover:scale-105`}>
                           <Bot className="h-5 w-5" />
                         </div>
                         <Badge
@@ -310,7 +311,7 @@ export default function LandingView() {
                       </div>
 
                       {/* Name + Provider */}
-                      <h3 className="text-base font-semibold text-gray-900 mb-1">
+                      <h3 className="text-base font-bold text-gray-900 mb-1">
                         {agent.name}
                       </h3>
                       <p className="text-xs text-muted-foreground mb-3">
@@ -328,13 +329,13 @@ export default function LandingView() {
                           <Badge
                             key={cap}
                             variant="secondary"
-                            className={`text-[10px] font-medium border ${CATEGORY_BADGE_COLORS[agent.category] || 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                            className={`text-[10px] font-medium ${CATEGORY_BADGE_COLORS[agent.category] || 'bg-gray-50 text-gray-600 border border-gray-200'}`}
                           >
                             {cap}
                           </Badge>
                         ))}
                         {agent.capabilities.length > 3 && (
-                          <Badge variant="secondary" className="text-[10px] font-medium bg-gray-50 text-gray-500 border-gray-200">
+                          <Badge variant="secondary" className="text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
                             +{agent.capabilities.length - 3}
                           </Badge>
                         )}
@@ -343,10 +344,10 @@ export default function LandingView() {
                       {/* Add button */}
                       <Button
                         size="sm"
-                        className={`w-full gap-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        className={`w-full gap-1.5 rounded-lg text-xs font-semibold transition-all duration-200 ${
                           alreadyAdded
                             ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                            : 'bg-gray-900 text-white hover:bg-gray-800'
+                            : 'bg-gray-900 text-white hover:bg-gray-800 hover:shadow-md'
                         }`}
                         onClick={() => handleHire(agent.id, agent.name)}
                       >
@@ -383,11 +384,11 @@ export default function LandingView() {
         </section>
 
         {/* ========== SHOWCASE PREVIEW ========== */}
-        <section className="py-20 px-4">
+        <section className="py-24 px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="flex items-end justify-between mb-10">
+            <div className="flex items-end justify-between mb-12">
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight">
+                <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">
                   See what AgentHub builds
                 </h2>
                 <p className="mt-3 text-muted-foreground text-lg">
@@ -396,7 +397,7 @@ export default function LandingView() {
               </div>
               <Button
                 variant="ghost"
-                className="hidden sm:flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="hidden sm:flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
                 onClick={() => setViewMode('showcase')}
               >
                 View all showcases
@@ -408,13 +409,13 @@ export default function LandingView() {
               {showcaseItems.map((item) => (
                 <Card
                   key={item.id}
-                  className="group rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer py-0"
+                  className="group rounded-2xl border border-gray-100 bg-white shadow-sm hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1 transition-all duration-300 cursor-pointer py-0"
                   onClick={() => setViewMode('showcase')}
                 >
                   <CardContent className="p-0">
                     {/* Placeholder image area */}
-                    <div className="relative h-40 rounded-t-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden">
-                      <Sparkles className="h-8 w-8 text-slate-300 transition-transform group-hover:scale-110" />
+                    <div className="relative h-40 rounded-t-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center overflow-hidden">
+                      <Sparkles className="h-8 w-8 text-slate-300 transition-transform duration-300 group-hover:scale-110" />
                       <div className="absolute bottom-3 left-3">
                         <Badge variant="secondary" className="text-[10px] font-medium bg-white/90 backdrop-blur-sm text-slate-700 border-0 shadow-sm">
                           {item.category}
@@ -422,7 +423,7 @@ export default function LandingView() {
                       </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1.5 line-clamp-1">
+                      <h3 className="text-sm font-bold text-gray-900 mb-1.5 line-clamp-1">
                         {item.title}
                       </h3>
                       <p className="text-xs text-muted-foreground leading-relaxed">
@@ -449,9 +450,9 @@ export default function LandingView() {
         </section>
 
         {/* ========== PRICING TEASER ========== */}
-        <section className="py-20 px-4 bg-gray-50/80">
+        <section className="py-24 px-4 bg-gray-50/80">
           <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mb-4">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight mb-4">
               Simple, transparent pricing
             </h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
@@ -459,7 +460,7 @@ export default function LandingView() {
             </p>
             <Button
               size="lg"
-              className="h-12 px-8 rounded-full bg-gray-900 text-white font-semibold text-base hover:bg-gray-800 shadow-lg transition-all"
+              className="h-12 px-8 rounded-full bg-gray-900 text-white font-semibold text-base hover:bg-gray-800 shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-[1.02]"
               onClick={() => setViewMode('pricing')}
             >
               View pricing
@@ -469,26 +470,28 @@ export default function LandingView() {
         </section>
 
         {/* ========== FOOTER ========== */}
-        <footer className="border-t bg-gray-50 py-8 px-4">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-600">
-                <span className="text-white text-[10px] font-bold">AH</span>
+        <footer className="border-t border-gray-200 bg-gray-50 mt-auto">
+          <div className="max-w-6xl mx-auto py-10 px-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-800 to-slate-600 shadow-sm">
+                  <span className="text-white text-[10px] font-black tracking-tighter">AH</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  &copy; 2025 AgentHub. All rights reserved.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                &copy; 2025 AgentHub. All rights reserved.
-              </p>
-            </div>
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <span className="hover:text-foreground cursor-pointer transition-colors">
-                Privacy
-              </span>
-              <span className="hover:text-foreground cursor-pointer transition-colors">
-                Terms
-              </span>
-              <span className="hover:text-foreground cursor-pointer transition-colors">
-                Contact
-              </span>
+              <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                <span className="hover:text-foreground cursor-pointer transition-colors duration-150">
+                  Privacy
+                </span>
+                <span className="hover:text-foreground cursor-pointer transition-colors duration-150">
+                  Terms
+                </span>
+                <span className="hover:text-foreground cursor-pointer transition-colors duration-150">
+                  Contact
+                </span>
+              </div>
             </div>
           </div>
         </footer>

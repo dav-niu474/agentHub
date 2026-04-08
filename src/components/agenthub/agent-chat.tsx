@@ -47,6 +47,31 @@ import {
 import { useAppStore, type AgentInstance, type ChatMessage, DEFAULT_AGENT_TYPES, DEFAULT_MODELS } from '@/store/app-store'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { MarkdownRenderer } from './markdown-renderer'
+
+// ==================== Chat Persistence Helpers ====================
+
+async function saveMessageToDB(agentInstanceId: string, role: string, content: string, messageType = 'text') {
+  try {
+    await fetch('/api/chat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentInstanceId, role, content, messageType }),
+    })
+  } catch {
+    // Silently fail - local dev may not have PostgreSQL
+  }
+}
+
+async function loadMessagesFromDB(agentInstanceId: string): Promise<Array<{ id: string; agentInstanceId: string; role: string; content: string; messageType: string; createdAt: string }>> {
+  try {
+    const res = await fetch(`/api/chat/messages?agentInstanceId=${encodeURIComponent(agentInstanceId)}`)
+    if (res.ok) return await res.json()
+  } catch {
+    // Silently fail
+  }
+  return []
+}
 
 // ==================== Constants ====================
 
@@ -66,7 +91,7 @@ const AGENT_ICON_MAP: Record<string, React.ElementType> = {
 
 const CATEGORY_BG: Record<string, string> = {
   coding: 'from-emerald-500/10 to-teal-500/10',
-  research: 'from-blue-500/10 to-cyan-500/10',
+  research: 'from-sky-500/10 to-cyan-500/10',
   creative: 'from-pink-500/10 to-rose-500/10',
   automation: 'from-orange-500/10 to-amber-500/10',
   strategy: 'from-violet-500/10 to-purple-500/10',
@@ -74,7 +99,7 @@ const CATEGORY_BG: Record<string, string> = {
 
 const CATEGORY_ICON_COLOR: Record<string, string> = {
   coding: 'text-emerald-600',
-  research: 'text-blue-600',
+  research: 'text-sky-600',
   creative: 'text-pink-600',
   automation: 'text-orange-600',
   strategy: 'text-violet-600',
@@ -83,10 +108,10 @@ const CATEGORY_ICON_COLOR: Record<string, string> = {
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: 'bg-orange-500',
   openai: 'bg-emerald-500',
-  google: 'bg-blue-500',
+  google: 'bg-sky-500',
   deepseek: 'bg-cyan-600',
   meta: 'bg-violet-500',
-  cursor: 'bg-indigo-500',
+  cursor: 'bg-violet-500',
   'open source': 'bg-teal-500',
   teamo: 'bg-rose-500',
   nvidia: 'bg-green-600',
@@ -137,7 +162,7 @@ function ChatBubble({ message, agentName }: { message: ChatMessage; agentName: s
   if (isSystem) {
     return (
       <div className="flex justify-center py-2">
-        <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground bg-gray-50 px-3 py-1 rounded-full">
+        <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
           <Sparkles className="h-3 w-3" />
           {message.content}
         </div>
@@ -163,7 +188,7 @@ function ChatBubble({ message, agentName }: { message: ChatMessage; agentName: s
           <span className="text-[11px] font-medium text-muted-foreground">
             {isUser ? 'You' : agentName}
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[10px] text-muted-foreground/70">
             {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
@@ -171,17 +196,21 @@ function ChatBubble({ message, agentName }: { message: ChatMessage; agentName: s
         {/* Bubble */}
         <div
           className={cn(
-            'relative rounded-2xl px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words',
+            'relative rounded-2xl px-4 py-3 text-[14px] leading-relaxed break-words',
             isUser
               ? 'bg-slate-900 text-white rounded-br-md'
               : 'bg-gray-100 text-gray-800 rounded-bl-md',
           )}
         >
-          {message.content}
+          {isUser ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : (
+            <MarkdownRenderer content={message.content} variant={isUser ? 'dark' : 'light'} />
+          )}
         </div>
 
         {/* Actions */}
-        <div className={cn('flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity', isUser && 'flex-row-reverse')}>
+        <div className={cn('flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200', isUser && 'flex-row-reverse')}>
           <Button
             variant="ghost"
             size="icon"
@@ -216,31 +245,55 @@ function EmptyState({ agentName, onSuggestionClick }: { agentName: string; onSug
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-6 py-20">
       <div className="relative mb-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-gray-200">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-gray-200 shadow-sm">
           <MessageSquare className="h-8 w-8 text-slate-400" />
         </div>
         <div className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg">
           <Bot className="h-3 w-3 text-white" />
         </div>
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+      <h3 className="text-lg font-bold text-gray-900 mb-2">
         Chat with {agentName}
       </h3>
-      <p className="text-sm text-muted-foreground max-w-sm mb-6">
+      <p className="text-sm text-muted-foreground max-w-sm mb-8">
         Start a conversation with this agent. You can ask questions, assign tasks, or collaborate on projects.
       </p>
-      <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
-        <p>Try saying:</p>
+      <div className="flex flex-col items-center gap-2.5 text-xs text-muted-foreground">
+        <p className="font-medium text-gray-500">Try saying:</p>
         <div className="flex flex-wrap justify-center gap-2">
           {['Analyze this code', 'Help me research...', 'Build a feature', 'Review my project'].map((suggestion) => (
             <button
               key={suggestion}
               onClick={() => onSuggestionClick(suggestion)}
-              className="px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 text-[11px] hover:bg-gray-200 hover:text-gray-900 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-medium hover:bg-gray-200 hover:text-gray-900 transition-colors duration-150 cursor-pointer border border-gray-100"
             >
               &quot;{suggestion}&quot;
             </button>
           ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== Typing Indicator ====================
+
+function TypingIndicator({ agentName }: { agentName: string }) {
+  return (
+    <div className="flex items-center gap-3 py-4">
+      <Avatar className="h-8 w-8 shrink-0">
+        <AvatarFallback className="bg-gradient-to-br from-slate-700 to-slate-500 text-white text-[11px] font-bold">
+          {agentName.slice(0, 2).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div>
+        <span className="text-[11px] font-medium text-muted-foreground block mb-1">
+          {agentName}
+        </span>
+        <div className="flex items-center gap-1.5 bg-gray-100 rounded-2xl px-4 py-3">
+          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms', animationDuration: '1s' }} />
+          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1s' }} />
+          <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms', animationDuration: '1s' }} />
         </div>
       </div>
     </div>
@@ -296,7 +349,7 @@ function AgentInfoPanel({ instance }: { instance: AgentInstance }) {
       {/* Status */}
       <Card className="rounded-xl border-gray-100 p-3">
         <div className="flex items-center gap-2">
-          <span className={cn('h-2 w-2 rounded-full', instance.status === 'working' ? 'bg-emerald-500 animate-pulse' : instance.status === 'completed' ? 'bg-blue-400' : instance.status === 'error' ? 'bg-red-500' : 'bg-gray-400')} />
+          <span className={cn('h-2 w-2 rounded-full', instance.status === 'working' ? 'bg-emerald-500 animate-pulse' : instance.status === 'completed' ? 'bg-emerald-400' : instance.status === 'error' ? 'bg-red-500' : 'bg-gray-400')} />
           <span className="text-[12px] font-medium capitalize text-gray-700">{instance.status}</span>
         </div>
         {instance.currentTask && (
@@ -311,7 +364,7 @@ function AgentInfoPanel({ instance }: { instance: AgentInstance }) {
         <Button
           variant="outline"
           size="sm"
-          className="w-full justify-start text-[12px] gap-2 rounded-lg border-gray-200"
+          className="w-full justify-start text-[12px] gap-2 rounded-lg border-gray-200 transition-colors"
           onClick={() => {
             toast.info('Task assignment', { description: 'Go to Tasks to create and assign tasks to this agent.' })
           }}
@@ -377,18 +430,40 @@ export default function AgentChatWorkspace() {
     }
   }, [agentMessages.length, isTyping])
 
-  // Welcome message
+  // Load persisted messages from database when switching agents
+  const loadedAgentRef = useRef<string | null>(null)
   useEffect(() => {
-    if (activeAgent && agentMessages.length === 0) {
-      addChatMessage({
-        id: `sys-${activeAgent.id}-${Date.now()}`,
-        agentInstanceId: activeAgent.id,
-        role: 'system',
-        content: `${activeAgent.name} is ready. Ask anything or assign a task.`,
-        timestamp: new Date(),
-      })
-    }
-  }, [activeAgent?.id])
+    if (!activeAgentInstanceId || activeAgentInstanceId === loadedAgentRef.current) return
+    loadedAgentRef.current = activeAgentInstanceId
+
+    loadMessagesFromDB(activeAgentInstanceId).then((dbMessages) => {
+      if (dbMessages.length > 0) {
+        // Check if we already have messages in memory for this agent
+        const existing = chatMessages.filter((m) => m.agentInstanceId === activeAgentInstanceId)
+        if (existing.length === 0) {
+          for (const msg of dbMessages) {
+            addChatMessage({
+              id: msg.id,
+              agentInstanceId: msg.agentInstanceId,
+              role: msg.role as 'user' | 'assistant' | 'system',
+              content: msg.content,
+              timestamp: new Date(msg.createdAt),
+              metadata: msg.messageType !== 'text' ? { type: msg.messageType as 'text' | 'code' | 'file' | 'task-update' } : undefined,
+            })
+          }
+        }
+      } else if (activeAgent) {
+        // No DB messages, add welcome message
+        addChatMessage({
+          id: `sys-${activeAgent.id}-${Date.now()}`,
+          agentInstanceId: activeAgent.id,
+          role: 'system',
+          content: `${activeAgent.name} is ready. Ask anything or assign a task.`,
+          timestamp: new Date(),
+        })
+      }
+    })
+  }, [activeAgentInstanceId])
 
   // Handle send message
   const handleSend = useCallback(async () => {
@@ -404,6 +479,7 @@ export default function AgentChatWorkspace() {
     addChatMessage(userMessage)
     setInputValue('')
     setIsTyping(true)
+    saveMessageToDB(activeAgent.id, 'user', inputValue.trim())
 
     // Update agent status to working
     updateAgentInstance(activeAgent.id, { status: 'working', currentTask: 'Responding...' })
@@ -427,26 +503,13 @@ export default function AgentChatWorkspace() {
         },
       }
       addChatMessage(agentMessage)
+      saveMessageToDB(activeAgent.id, 'assistant', responseText)
       updateAgentInstance(activeAgent.id, { status: 'idle', currentTask: undefined })
       setIsTyping(false)
 
       // If it was a task request, auto-assign a task
       if (isTaskRequest) {
         const taskId = `task-${Date.now()}`
-        const newTask = {
-          id: taskId,
-          title: inputValue.trim().slice(0, 80),
-          description: inputValue.trim(),
-          status: 'in-progress' as const,
-          priority: 'medium' as const,
-          assignedAgentInstanceId: activeAgent.id,
-          category: activeAgentType?.category || 'general',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          creditsUsed: 2.5,
-        }
-        // Note: We can't call addProjectTask here because we're in the store context
-        // Instead, we'll add a notification
         addNotification({
           id: `notif-${Date.now()}`,
           type: 'in-app',
@@ -474,19 +537,19 @@ export default function AgentChatWorkspace() {
   // No active agent selected
   if (!activeAgent) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-6">
+      <div className="flex flex-col items-center justify-center h-full text-center px-6 bg-gradient-to-b from-white to-gray-50/50">
         <div className="relative mb-6">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-gray-200">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-gray-200 shadow-sm">
             <MessageSquare className="h-10 w-10 text-slate-400" />
           </div>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Select an Agent</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Select an Agent</h3>
         <p className="text-sm text-muted-foreground max-w-xs mb-6">
           Choose a hired agent from the sidebar to start chatting.
         </p>
         <Button
           variant="outline"
-          className="gap-2 rounded-lg"
+          className="gap-2 rounded-lg transition-colors"
           onClick={() => setViewMode('agents')}
         >
           <Bot className="h-4 w-4" />
@@ -552,7 +615,7 @@ export default function AgentChatWorkspace() {
         </div>
 
         {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 bg-gradient-to-b from-white to-gray-50/30">
           {agentMessages.length <= 1 ? (
             <EmptyState agentName={activeAgent.name} onSuggestionClick={(text) => { setInputValue(text); setTimeout(() => handleSend(), 50) }} />
           ) : (
@@ -561,25 +624,14 @@ export default function AgentChatWorkspace() {
                 <ChatBubble key={msg.id} message={msg} agentName={activeAgent.name} />
               ))}
               {isTyping && (
-                <div className="flex items-center gap-3 py-4">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-gradient-to-br from-slate-700 to-slate-500 text-white text-[11px] font-bold">
-                      {activeAgent.name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex items-center gap-1 bg-gray-100 rounded-2xl px-4 py-3">
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
-                </div>
+                <TypingIndicator agentName={activeAgent.name} />
               )}
             </div>
           )}
         </div>
 
         {/* Input area */}
-        <div className="border-t border-gray-100 px-4 md:px-6 py-3 shrink-0">
+        <div className="border-t border-gray-100 px-4 md:px-6 py-3 shrink-0 bg-white">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-2">
               <div className="flex-1 relative">
@@ -606,7 +658,7 @@ export default function AgentChatWorkspace() {
                     size="icon"
                     disabled={!inputValue.trim() || isTyping}
                     onClick={handleSend}
-                    className="h-7 w-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-white shrink-0 disabled:opacity-50 transition-all"
+                    className="h-7 w-7 rounded-lg bg-slate-900 hover:bg-slate-800 text-white shrink-0 disabled:opacity-50 transition-all duration-150"
                   >
                     <Send className="h-3.5 w-3.5" />
                   </Button>

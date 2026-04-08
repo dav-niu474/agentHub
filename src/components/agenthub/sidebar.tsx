@@ -47,10 +47,10 @@ const NAV_ITEMS: NavItem[] = [
 const PROVIDER_COLORS: Record<string, string> = {
   anthropic: 'bg-gradient-to-br from-orange-500 to-amber-500',
   openai: 'bg-gradient-to-br from-emerald-500 to-teal-500',
-  google: 'bg-gradient-to-br from-blue-500 to-sky-500',
+  google: 'bg-gradient-to-br from-sky-500 to-sky-400',
   deepseek: 'bg-gradient-to-br from-cyan-600 to-sky-500',
   meta: 'bg-gradient-to-br from-violet-500 to-purple-500',
-  cursor: 'bg-gradient-to-br from-indigo-500 to-violet-500',
+  cursor: 'bg-gradient-to-br from-violet-500 to-purple-500',
   'open source': 'bg-gradient-to-br from-teal-500 to-emerald-500',
   teamo: 'bg-gradient-to-br from-rose-500 to-pink-500',
   nvidia: 'bg-gradient-to-br from-green-600 to-emerald-500',
@@ -72,7 +72,7 @@ const PROVIDER_LETTERS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   idle: 'bg-gray-400',
   working: 'bg-emerald-500 animate-pulse',
-  completed: 'bg-blue-400',
+  completed: 'bg-emerald-400',
   error: 'bg-red-500',
 }
 
@@ -100,17 +100,17 @@ function SidebarIcon({ icon: Icon, label, active = false, onClick }: SidebarIcon
           type="button"
           onClick={onClick}
           className={cn(
-            'group relative flex w-full flex-col items-center justify-center gap-1 py-2.5 rounded-xl transition-all duration-200 outline-none',
+            'group relative flex w-full flex-col items-center justify-center gap-1 py-2.5 rounded-xl transition-all duration-200 ease-out outline-none',
             active
-              ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-md shadow-slate-900/20'
-              : 'text-gray-400 hover:bg-gray-50 hover:text-slate-700',
+              ? 'bg-gradient-to-br from-slate-800 to-slate-900 text-white shadow-md shadow-slate-900/20 scale-105'
+              : 'text-gray-400 hover:bg-gray-50 hover:text-slate-700 hover:scale-105',
           )}
         >
-          <Icon className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110" strokeWidth={active ? 2.2 : 1.8} />
+          <Icon className="h-[18px] w-[18px] shrink-0 transition-all duration-200 group-hover:scale-110" strokeWidth={active ? 2.2 : 1.8} />
           <span className="text-[10px] leading-none font-semibold select-none">{label}</span>
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right" sideOffset={12} className="rounded-lg">
+      <TooltipContent side="right" sideOffset={14} className="rounded-lg text-xs">
         {label}
       </TooltipContent>
     </Tooltip>
@@ -194,10 +194,10 @@ export function Sidebar() {
                         type="button"
                         onClick={() => handleAgentClick(agent.id)}
                         className={cn(
-                          'group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 outline-none',
+                          'group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 ease-out outline-none',
                           isActive
-                            ? 'ring-2 ring-slate-800 ring-offset-2 shadow-md'
-                            : 'hover:ring-2 hover:ring-gray-200 hover:ring-offset-2',
+                            ? 'ring-2 ring-slate-800 ring-offset-2 shadow-md scale-105'
+                            : 'hover:ring-2 hover:ring-gray-200 hover:ring-offset-2 hover:scale-105',
                         )}
                       >
                         <span
@@ -216,10 +216,10 @@ export function Sidebar() {
                         />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="right" sideOffset={12} className="rounded-lg">
+                    <TooltipContent side="right" sideOffset={14} className="rounded-lg text-xs">
                       <div className="flex flex-col gap-0.5">
                         <span className="font-semibold">{agent.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] text-muted-foreground">
                           {STATUS_LABELS[agent.status] || agent.status}
                           {agent.currentTask && ` · ${agent.currentTask}`}
                         </span>
@@ -239,13 +239,13 @@ export function Sidebar() {
                 <button
                   type="button"
                   onClick={() => setViewMode('agents')}
-                  className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-gray-400 transition-all duration-200 hover:bg-gray-50 hover:text-slate-700 outline-none"
+                  className="flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-gray-400 transition-all duration-200 hover:bg-gray-50 hover:text-slate-700 hover:scale-105 outline-none"
                 >
                   <Plus className="h-[18px] w-[18px]" strokeWidth={1.8} />
                   <span className="text-[10px] leading-none font-semibold select-none">Hire</span>
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={12} className="rounded-lg">
+              <TooltipContent side="right" sideOffset={14} className="rounded-lg text-xs">
                 Hire Agent
               </TooltipContent>
             </Tooltip>

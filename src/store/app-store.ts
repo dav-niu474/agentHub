@@ -241,6 +241,9 @@ export const DEFAULT_MODELS: AIModel[] = [
   { id: 'llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta', icon: 'meta', creditsPerConversation: 0.5, description: 'Meta open-source model', tier: 'pro' },
   { id: 'nvidia-llama-3.1-nemotron-70b', name: 'Llama 3.1 Nemotron 70B', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 1, description: 'NVIDIA NIM hosted Llama 3.1 Nemotron 70B for high-quality instruction following', tier: 'free' },
   { id: 'nvidia-mistral-nemo-12b', name: 'Mistral NeMo 12B', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 0.3, description: 'NVIDIA NIM hosted Mistral NeMo 12B for fast efficient inference', tier: 'free' },
+  { id: 'glm-4.7', name: 'GLM 4.7', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 1, description: 'NVIDIA NIM hosted GLM 4.7 for advanced Chinese & English understanding', tier: 'free' },
+  { id: 'glm-5', name: 'GLM 5', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 2, description: 'NVIDIA NIM hosted GLM 5 flagship model with superior reasoning', tier: 'free' },
+  { id: 'kimi-2.5', name: 'Kimi 2.5', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 1, description: 'NVIDIA NIM hosted Kimi 2.5 by Moonshot for long-context understanding', tier: 'free' },
 ]
 
 export const DEFAULT_AGENT_TYPES: AgentType[] = [
@@ -411,7 +414,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
 
   models: DEFAULT_MODELS,
-  selectedModelId: 'claude-sonnet-4-6',
+  selectedModelId: 'glm-5',
   setSelectedModelId: (id) => set({ selectedModelId: id }),
 
   agentTypes: [],
