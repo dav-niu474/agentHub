@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import ZAI from 'z-ai-web-dev-sdk'
 
 interface HiredAgent {
   id: string
@@ -9,257 +10,291 @@ interface HiredAgent {
   status: string
 }
 
-interface TaskSuggestion {
+interface PlanTask {
+  id: string
   title: string
   description: string
-  category: string
   priority: 'low' | 'medium' | 'high'
-  assignedAgentId: string
-  assignedAgentName: string
+  category: string
+  suggestedAgentCategory: string
+  order: number
 }
 
-// Category-keyword mapping for task assignment
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  coding: ['code', 'build', 'develop', 'implement', 'program', 'api', 'frontend', 'backend', 'database', 'schema', 'auth', 'login', 'register', 'component', 'feature', 'function', 'class', 'module', 'test', 'deploy', 'debug', 'refactor', 'optimize', 'performance', 'server', 'endpoint', 'route', 'migrate', 'integration', 'ci/cd', 'pipeline', 'scaffold', 'setup', 'install', 'configure', 'web', 'app', 'mobile', 'react', 'next', 'node', 'typescript', 'css', 'html', 'ui', 'ux'],
-  research: ['research', 'analyze', 'investigate', 'study', 'survey', 'report', 'data', 'market', 'competitor', 'trend', 'industry', 'benchmark', 'insight', 'findings', 'literature', 'paper', 'academic', 'science', 'statistics', 'quantitative', 'qualitative'],
-  creative: ['design', 'write', 'content', 'copy', 'blog', 'article', 'social media', 'marketing', 'brand', 'creative', 'video', 'image', 'graphic', 'logo', 'campaign', 'ad', 'advertisement', 'slogan', 'tagline', 'story', 'narrative', 'email', 'newsletter'],
-  automation: ['automate', 'workflow', 'process', 'schedule', 'script', 'cron', 'monitor', 'alert', 'notification', 'bot', 'robot', 'pipeline', 'deploy', 'ci', 'cd', 'devops', 'infrastructure', 'serverless', 'cloud', 'aws', 'docker', 'kubernetes'],
-  strategy: ['strategy', 'plan', 'roadmap', 'vision', 'goal', 'objective', 'kpi', 'metric', 'growth', 'revenue', 'business', 'startup', 'pivot', 'scale', 'launch', 'go-to-market', 'pricing', 'competitive', 'swot', 'legal', 'compliance', 'contract', 'regulation'],
+// ==================== System Prompts ====================
+
+const CLARIFY_SYSTEM_PROMPT = `You are an AI Project Coordinator — an expert at understanding user requirements and breaking down complex projects. Your job is to:
+
+1. **Understand** what the user wants to build or accomplish
+2. **Ask clarifying questions** to fill in gaps in requirements
+3. **Identify key components** needed for the project
+4. **Once requirements are clear**, signal that you're ready to create a task plan
+
+Be conversational but professional. Ask 1-3 focused questions at a time. Don't overwhelm the user.
+
+When you feel you have enough information to create a comprehensive task plan, include this exact marker at the END of your response:
+[READY_TO_PLAN]
+
+Available agent categories: coding, research, creative, automation, strategy`
+
+const PLAN_SYSTEM_PROMPT = `You are an AI Project Coordinator. Based on the conversation context, create a detailed task plan.
+
+You MUST respond with valid JSON in this exact format (no markdown, no code fences, just raw JSON):
+{
+  "title": "Project Title",
+  "description": "Brief project description",
+  "requirements": ["requirement 1", "requirement 2", "requirement 3"],
+  "tasks": [
+    {
+      "title": "Task title",
+      "description": "Detailed description of what needs to be done",
+      "priority": "high|medium|low",
+      "category": "coding|research|creative|automation|strategy",
+      "suggestedAgentCategory": "coding|research|creative|automation|strategy",
+      "order": 1
+    }
+  ]
 }
 
-// Task templates based on common development patterns
-const TASK_TEMPLATES: Record<string, TaskSuggestion[]> = {
-  'ecommerce': [
-    { title: 'Design database schema', description: 'Create the database schema for users, products, orders, payments, and categories with proper relationships and indexes.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Implement user authentication', description: 'Build complete auth system with registration, login, password reset, and session management.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Build product catalog API', description: 'Create RESTful API endpoints for product CRUD operations, search, filtering, and pagination.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Implement shopping cart', description: 'Build shopping cart functionality with add/remove items, quantity management, and price calculation.', category: 'coding', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Payment integration', description: 'Integrate payment gateway (Stripe) for checkout, subscription management, and refund handling.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Write comprehensive tests', description: 'Create unit tests and integration tests for all API endpoints and critical business logic.', category: 'coding', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
-  'saas': [
-    { title: 'Design SaaS architecture', description: 'Plan multi-tenant architecture, data isolation strategy, and scalable infrastructure design.', category: 'strategy', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Build subscription billing', description: 'Implement subscription management with tiered pricing, free trials, and usage-based billing.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Create user dashboard', description: 'Build the main user dashboard with data visualization, settings, and account management.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Set up CI/CD pipeline', description: 'Configure automated testing, building, and deployment pipeline with staging and production environments.', category: 'automation', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
-  'blog': [
-    { title: 'Set up CMS structure', description: 'Create the content management system with posts, categories, tags, and media management.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Build blog frontend', description: 'Design and implement the blog UI with post listing, detail pages, search, and responsive design.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Implement SEO optimization', description: 'Add meta tags, sitemap generation, Open Graph support, and structured data markup.', category: 'creative', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
-  'ai': [
-    { title: 'Research AI/ML approaches', description: 'Analyze available AI models and APIs for the use case. Compare accuracy, cost, and latency.', category: 'research', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Build AI integration layer', description: 'Create the backend service for AI model communication, caching, and error handling.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Design prompt engineering strategy', description: 'Develop optimized prompts for different use cases with fallback strategies and rate limiting.', category: 'strategy', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Implement monitoring & analytics', description: 'Set up usage tracking, cost monitoring, and performance analytics for AI features.', category: 'automation', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
-  'marketing': [
-    { title: 'Market research & analysis', description: 'Conduct thorough market research including competitor analysis, target audience profiling, and trend identification.', category: 'research', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Create content strategy', description: 'Develop a comprehensive content marketing plan with editorial calendar, channels, and KPIs.', category: 'creative', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Design brand guidelines', description: 'Create brand identity guidelines including visual identity, tone of voice, and messaging framework.', category: 'creative', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
-  'default': [
-    { title: 'Project planning & research', description: 'Analyze requirements, research best practices, and create a detailed implementation plan.', category: 'research', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Core implementation', description: 'Implement the main functionality based on the project requirements and plan.', category: 'coding', priority: 'high', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Testing & QA', description: 'Create comprehensive test suite and perform quality assurance checks.', category: 'coding', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-    { title: 'Documentation & deployment', description: 'Write project documentation, user guides, and set up deployment pipeline.', category: 'automation', priority: 'medium', assignedAgentId: '', assignedAgentName: '' },
-  ],
+Rules:
+- Create 3-8 tasks depending on project complexity
+- Each task should be specific and actionable
+- Prioritize tasks logically (setup first, then core features, then polish)
+- Match task categories to the best agent type
+- suggestedAgentCategory should match the most suitable agent for that task
+- Include at least one coding or research task for any project`
+
+// ==================== Helper Functions ====================
+
+function buildConversationContext(chatHistory: Array<{ role: string; content: string }>) {
+  return chatHistory.map((msg) => ({
+    role: msg.role === 'user' ? 'user' : 'assistant',
+    content: msg.content,
+  }))
 }
 
-function detectProjectType(message: string): string {
-  const lower = message.toLowerCase()
-  if (lower.includes('ecommerce') || lower.includes('e-commerce') || lower.includes('shop') || lower.includes('store') || lower.includes('cart') || lower.includes('payment') || lower.includes('checkout') || lower.includes('product')) return 'ecommerce'
-  if (lower.includes('saas') || lower.includes('subscription') || lower.includes('billing') || lower.includes('multi-tenant')) return 'saas'
-  if (lower.includes('blog') || lower.includes('cms') || lower.includes('content') || lower.includes('article') || lower.includes('post')) return 'blog'
-  if (lower.includes('ai') || lower.includes('machine learning') || lower.includes('ml') || lower.includes('llm') || lower.includes('gpt') || lower.includes('claude') || lower.includes('chatbot') || lower.includes('agent')) return 'ai'
-  if (lower.includes('marketing') || lower.includes('campaign') || lower.includes('brand') || lower.includes('seo') || lower.includes('social media')) return 'marketing'
-  return 'default'
-}
+function matchAgentToCategory(
+  category: string,
+  agents: HiredAgent[],
+  usedAgentIds: Set<string>
+): HiredAgent | null {
+  // Find agents matching the category
+  const matching = agents.filter(
+    (a) => a.category === category && !usedAgentIds.has(a.id) && a.status !== 'working'
+  )
 
-function matchAgentToTask(task: TaskSuggestion, agents: HiredAgent[]): HiredAgent | null {
-  // Find agents that match the task category
-  const categoryMatch = agents.filter(a => a.category === task.category && a.status !== 'working')
-
-  if (categoryMatch.length > 0) {
-    // Pick the first available idle agent in matching category
-    const idleAgent = categoryMatch.find(a => a.status === 'idle')
-    if (idleAgent) return idleAgent
-    // If all working, pick the least busy one
-    return categoryMatch[0]
+  if (matching.length > 0) {
+    // Prefer idle agents
+    const idle = matching.find((a) => a.status === 'idle')
+    return idle || matching[0]
   }
 
-  // Fallback: find any coding agent for coding tasks
-  if (task.category === 'coding') {
-    const codingAgent = agents.find(a => (a.category === 'coding' || a.capabilities.some(c => task.title.toLowerCase().includes(c.toLowerCase()))) && a.status !== 'working')
-    if (codingAgent) return codingAgent
-  }
-
-  // Final fallback: any idle agent
-  const anyIdle = agents.find(a => a.status === 'idle')
+  // Fallback: any idle agent not yet used
+  const anyIdle = agents.find((a) => a.status === 'idle' && !usedAgentIds.has(a.id))
   if (anyIdle) return anyIdle
 
-  // Last resort: any agent
+  // Last resort: round-robin to any available agent
+  const anyAvailable = agents.find((a) => !usedAgentIds.has(a.id))
+  if (anyAvailable) return anyAvailable
+
   return agents[0] || null
 }
 
-function assignTasks(agents: HiredAgent[], userMessage: string): { tasks: TaskSuggestion[]; response: string } {
-  const projectType = detectProjectType(userMessage)
-  const templates = TASK_TEMPLATES[projectType] || TASK_TEMPLATES.default
+async function callLLM(systemPrompt: string, conversationHistory: Array<{ role: string; content: string }>, userMessage: string): Promise<string> {
+  const zai = await ZAI.create()
 
-  // Deep clone templates
-  const tasks: TaskSuggestion[] = templates.map(t => ({ ...t }))
+  const messages = [
+    { role: 'assistant' as const, content: systemPrompt },
+    ...conversationHistory,
+    { role: 'user' as const, content: userMessage },
+  ]
 
-  // Track how many tasks each agent gets (round-robin distribution)
-  const agentTaskCount: Map<string, number> = new Map()
-  const assignments: Map<string, HiredAgent> = new Map()
+  const completion = await zai.chat.completions.create({
+    messages,
+    thinking: { type: 'disabled' },
+  })
 
-  for (const task of tasks) {
-    // Find all agents matching the task category
-    const categoryMatch = agents.filter(a => a.category === task.category)
-    let bestAgent: HiredAgent | null = null
-
-    if (categoryMatch.length > 0) {
-      // Pick the agent with fewest assigned tasks
-      categoryMatch.sort((a, b) => (agentTaskCount.get(a.id) || 0) - (agentTaskCount.get(b.id) || 0))
-      bestAgent = categoryMatch[0]
-    } else {
-      // Fallback: any idle agent with fewest tasks
-      const sorted = [...agents].sort((a, b) => (agentTaskCount.get(a.id) || 0) - (agentTaskCount.get(b.id) || 0))
-      bestAgent = sorted[0] || null
-    }
-
-    if (bestAgent) {
-      task.assignedAgentId = bestAgent.id
-      task.assignedAgentName = bestAgent.name
-      assignments.set(task.title, bestAgent)
-      agentTaskCount.set(bestAgent.id, (agentTaskCount.get(bestAgent.id) || 0) + 1)
-    }
-  }
-
-  // Generate response
-  const projectName = userMessage.slice(0, 80)
-  const assignedCount = tasks.filter(t => t.assignedAgentId).length
-  const unassignedCount = tasks.length - assignedCount
-
-  let response = `I've analyzed your request and created **${tasks.length} tasks** for your project.\n\n`
-
-  if (assignedCount > 0) {
-    response += `**Task Assignment:**\n\n`
-    for (const task of tasks) {
-      if (task.assignedAgentId) {
-        const agent = assignments.get(task.title)
-        response += `- **${task.title}** → ${agent?.name} (${task.category})\n`
-      }
-    }
-    response += '\n'
-  }
-
-  if (unassignedCount > 0) {
-    response += `⚠️ **${unassignedCount} task(s)** could not be auto-assigned. Please hire more agents or assign manually.\n\n`
-  }
-
-  response += `I'm dispatching tasks to your agent team now. You can monitor progress in the task board on the right, or check individual agent workspaces in the sidebar.`
-
-  // If no agents hired
-  if (agents.length === 0) {
-    response = `I understand you want to: **"${projectName}"**\n\nI've broken this down into **${tasks.length} tasks**, but you haven't hired any agents yet!\n\nPlease go to the **Agent Store** to hire agents first. I recommend:\n- **Claude Code** for coding tasks\n- **Codex** for full project generation\n- **Deep Research Agent** for analysis\n\nOnce you have agents hired, come back and I'll assign the tasks automatically.`
-  }
-
-  return { tasks, response }
+  return completion.choices[0]?.message?.content || ''
 }
 
-// Generate contextual AI responses for follow-up messages
-function generateFollowUpResponse(message: string, _chatHistory: Array<{ role: string; content: string }>): string {
-  const lower = message.toLowerCase()
-
-  if (lower.includes('progress') || lower.includes('status') || lower.includes('how')) {
-    return `Here's the current status of your project:\n\n**Active Tasks:** Check the task board on the right for real-time progress updates.\n\nYour agents are working autonomously. I'll notify you as soon as any task is completed. You can also click on an agent in the sidebar to see their individual workspace.`
-  }
-
-  if (lower.includes('add task') || lower.includes('new task') || lower.includes('create task')) {
-    return `I can create new tasks for you! Just describe what you need done, and I'll:\n\n1. **Analyze** the requirement\n2. **Create** an appropriate task\n3. **Assign** it to the best-suited available agent\n4. **Dispatch** it for autonomous execution\n\nWhat task would you like to add?`
-  }
-
-  if (lower.includes('result') || lower.includes('output') || lower.includes('deliver') || lower.includes('complete')) {
-    return `Task results are available in the **Tasks** view. When agents complete their work:\n\n- ✅ Results are stored with each task\n- 📧 Email notifications are sent\n- 📁 Output files are attached\n\nYou can also check the notification bell for updates.`
-  }
-
-  if (lower.includes('hire') || lower.includes('agent') || lower.includes('add agent')) {
-    return `To hire agents, click on **"Agents"** in the sidebar or use the **Hire (+)** button at the bottom.\n\n**Recommended agents for development:**\n- 🔶 **Claude Code** — Terminal-based coding with multi-file editing\n- 🟢 **Codex** — Full project generation in cloud sandboxes\n- 🟣 **OpenClaw** — Computer automation and browser control\n- 🔵 **Deep Research** — Comprehensive analysis and reporting\n\nEach agent has unique strengths. Hiring more agents allows for better task parallelization!`
-  }
-
-  if (lower.includes('thank') || lower.includes('thanks') || lower.includes('great')) {
-    return `You're welcome! I'm here to help coordinate your agent team. Feel free to:\n\n- Describe new requirements to create more tasks\n- Check agent progress in the sidebar\n- Review completed task results\n\nYour AI agents are working 24/7. Just ask if you need anything! 🚀`
-  }
-
-  // Default follow-up
-  return `I'm your AI project coordinator. I can help you:\n\n1. **Create tasks** — Describe what you need and I'll break it down\n2. **Assign agents** — Tasks are auto-assigned based on agent strengths\n3. **Monitor progress** — Check the task board for real-time updates\n4. **Manage workflow** — Add, prioritize, and track all your tasks\n\nWhat would you like to do next?`
-}
+// ==================== Main Handler ====================
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, chatHistory, hiredAgents } = body
+    const { message, chatHistory, hiredAgents, currentPhase, planRequirements } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 1000))
-
     const agents: HiredAgent[] = hiredAgents || []
     const history: Array<{ role: string; content: string }> = chatHistory || []
+    const phase = currentPhase || 'idle'
 
-    // Check if this is a task-creation request (first substantive message or contains project keywords)
-    const lowerMessage = message.toLowerCase()
-    const isTaskRequest =
-      lowerMessage.includes('build') ||
-      lowerMessage.includes('create') ||
-      lowerMessage.includes('develop') ||
-      lowerMessage.includes('implement') ||
-      lowerMessage.includes('make') ||
-      lowerMessage.includes('design') ||
-      lowerMessage.includes('set up') ||
-      lowerMessage.includes('need') ||
-      lowerMessage.includes('want') ||
-      lowerMessage.includes('project') ||
-      lowerMessage.includes('platform') ||
-      lowerMessage.includes('app') ||
-      lowerMessage.includes('website') ||
-      lowerMessage.includes('system') ||
-      lowerMessage.includes('tool') ||
-      lowerMessage.includes('dashboard') ||
-      lowerMessage.includes('write') ||
-      lowerMessage.includes('research') ||
-      lowerMessage.includes('analyze')
-
-    // Determine if this is the first task-creating message
-    const hasPreviousTaskCreation = history.some((m) =>
-      m.role === 'assistant' && m.content.includes('created')
-    )
-
-    let tasks: TaskSuggestion[] = []
     let response = ''
+    let tasks: PlanTask[] = []
+    let newPhase = phase
+    let planRequirements: string[] = []
 
-    if (isTaskRequest && !hasPreviousTaskCreation) {
-      // Generate tasks from the user's request
-      const result = assignTasks(agents, message)
-      tasks = result.tasks
-      response = result.response
-    } else {
-      // Follow-up conversation
-      response = generateFollowUpResponse(message, history)
+    // ==================== PHASE: Clarifying ====================
+    if (phase === 'idle' || phase === 'clarifying') {
+      const context = buildConversationContext(history)
+      const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
+
+      response = aiResponse
+      planRequirements = planRequirements || []
+
+      // Check if AI is ready to plan
+      if (aiResponse.includes('[READY_TO_PLAN]')) {
+        newPhase = 'planning'
+        // Clean the marker from the response
+        response = aiResponse.replace('[READY_TO_PLAN]', '').trim()
+
+        // Auto-generate the plan immediately
+        const planSystemPrompt = `${PLAN_SYSTEM_PROMPT}\n\nBased on the conversation, the user wants to build something with these understood requirements:\n${response}`
+
+        try {
+          const planResponse = await callLLM(planSystemPrompt, [], 'Create a detailed task plan for this project.')
+
+          // Try to parse JSON
+          let planJson
+          try {
+            // Clean up potential markdown code fences
+            const cleaned = planResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+            planJson = JSON.parse(cleaned)
+          } catch {
+            // If JSON parse fails, try to extract JSON from the response
+            const jsonMatch = planResponse.match(/\{[\s\S]*\}/)
+            if (jsonMatch) {
+              planJson = JSON.parse(jsonMatch[0])
+            }
+          }
+
+          if (planJson && planJson.tasks) {
+            tasks = planJson.tasks.map((t: Partial<PlanTask> & { order?: number }, i: number) => ({
+              id: `plan-${Date.now()}-${i}`,
+              title: t.title || 'Untitled Task',
+              description: t.description || '',
+              priority: (t.priority || 'medium') as PlanTask['priority'],
+              category: (t.category || 'general') as string,
+              suggestedAgentCategory: (t.suggestedAgentCategory || t.category || 'general') as string,
+              order: t.order || (i + 1),
+            }))
+
+            response += `\n\n---\n\n📋 **I've created a task plan with ${tasks.length} tasks.** Please review the plan on the right panel. You can edit task details, remove tasks, or add new ones before confirming execution.`
+          }
+        } catch (planError) {
+          console.error('Plan generation error:', planError)
+          response += '\n\n⚠️ I had trouble generating the full plan. You can try again or describe your project more specifically.'
+          newPhase = 'clarifying'
+        }
+      } else {
+        newPhase = 'clarifying'
+      }
+    }
+    // ==================== PHASE: Planning (user is reviewing/editing plan) ====================
+    else if (phase === 'planning') {
+      const lower = message.toLowerCase()
+
+      // User confirms the plan
+      if (
+        lower.includes('confirm') ||
+        lower.includes('execute') ||
+        lower.includes('go ahead') ||
+        lower.includes('start') ||
+        lower.includes('looks good') ||
+        lower.includes('proceed') ||
+        lower.includes('开始') ||
+        lower.includes('执行') ||
+        lower.includes('确认')
+      ) {
+        // The frontend will send the current plan tasks for execution
+        newPhase = 'executing'
+        response = `✅ **Plan confirmed!** I'm now dispatching tasks to your agent team. You can monitor progress in the task board.`
+      }
+      // User wants to modify the plan - AI helps adjust
+      else if (
+        lower.includes('add task') ||
+        lower.includes('remove') ||
+        lower.includes('change') ||
+        lower.includes('modify') ||
+        lower.includes('edit') ||
+        lower.includes('add a task') ||
+        lower.includes('调整') ||
+        lower.includes('修改') ||
+        lower.includes('增加')
+      ) {
+        newPhase = 'planning'
+        response = `Sure! You can directly edit the task plan in the panel on the right:\n\n- ✏️ Click on any task title or description to edit it\n- ➕ Use "Add Task" to add new tasks\n- 🗑️ Use the remove button to delete tasks\n- 📊 Adjust priority levels as needed\n\nOnce you're happy with the plan, type **"confirm"** or **"execute"** to start dispatching tasks to your agents.`
+      }
+      // General question during planning
+      else {
+        const context = buildConversationContext(history)
+        const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
+        response = aiResponse
+
+        if (!aiResponse.includes('[READY_TO_PLAN]')) {
+          newPhase = 'clarifying'
+          response += '\n\n💡 Want me to update the task plan based on this? Just say "update the plan".'
+        } else {
+          response = aiResponse.replace('[READY_TO_PLAN]', '').trim()
+          newPhase = 'planning'
+        }
+      }
+    }
+    // ==================== PHASE: Executing ====================
+    else if (phase === 'executing') {
+      const lower = message.toLowerCase()
+
+      // Status/progress queries
+      if (lower.includes('progress') || lower.includes('status') || lower.includes('how')) {
+        response = `Here's the current status of your project:\n\n**Active Tasks:** Check the task board on the right for real-time progress updates.\n\nYour agents are working autonomously. I'll notify you as soon as any task is completed. You can also click on an agent in the sidebar to see their individual workspace.`
+      } else if (lower.includes('add task') || lower.includes('new task')) {
+        response = `I can create new tasks for you! Just describe what you need done, and I'll:\n\n1. **Analyze** the requirement\n2. **Create** an appropriate task\n3. **Assign** it to the best-suited available agent\n4. **Dispatch** it for autonomous execution\n\nWhat task would you like to add?`
+      } else if (lower.includes('result') || lower.includes('output') || lower.includes('deliver')) {
+        response = `Task results are available in the **Tasks** view. When agents complete their work:\n\n- ✅ Results are stored with each task\n- 📧 Email notifications are sent\n- 📁 Output files are attached\n\nYou can also check the notification bell for updates.`
+      } else if (lower.includes('hire') || lower.includes('agent')) {
+        response = `To hire agents, click on **"Agents"** in the sidebar or use the **Hire (+)** button at the bottom.\n\n**Recommended agents:**\n- 🔶 **Claude Code** — Terminal-based coding\n- 🟢 **Codex** — Full project generation\n- 🟣 **OpenClaw** — Computer automation\n- 🔵 **Deep Research** — Analysis and reporting\n\nHiring more agents allows better task parallelization!`
+      } else {
+        response = `I'm your AI project coordinator. I can help you:\n\n1. **Create tasks** — Describe what you need and I'll break it down\n2. **Assign agents** — Tasks are auto-assigned based on agent strengths\n3. **Monitor progress** — Check the task board for real-time updates\n4. **Manage workflow** — Add, prioritize, and track all your tasks\n\nWhat would you like to do next?`
+      }
+      newPhase = 'executing'
+    }
+
+    // ==================== Agent Assignment ====================
+    let assignments: Array<{ taskId: string; agentId: string; agentName: string }> = []
+
+    if (newPhase === 'executing' && tasks.length > 0 && agents.length > 0) {
+      const usedIds = new Set<string>()
+      for (const task of tasks) {
+        const agent = matchAgentToCategory(task.suggestedAgentCategory || task.category, agents, usedIds)
+        if (agent) {
+          assignments.push({
+            taskId: task.id,
+            agentId: agent.id,
+            agentName: agent.name,
+          })
+          usedIds.add(agent.id)
+        }
+      }
     }
 
     return NextResponse.json({
       message: response,
-      tasks,
+      phase: newPhase,
+      tasks: tasks.length > 0 ? tasks : undefined,
+      assignments: assignments.length > 0 ? assignments : undefined,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
     console.error('Workspace chat API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        message: 'Sorry, I encountered an error. Please try again.',
+        phase: 'idle',
+      },
+      { status: 500 }
+    )
   }
 }

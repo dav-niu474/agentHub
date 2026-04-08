@@ -52,6 +52,8 @@ export interface ChatMessage {
   }
 }
 
+export type WorkspacePhase = 'idle' | 'clarifying' | 'planning' | 'executing'
+
 export interface WorkspaceMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -59,6 +61,7 @@ export interface WorkspaceMessage {
   timestamp: Date
   createdTaskIds?: string[]
   isProcessing?: boolean
+  phase?: WorkspacePhase
 }
 
 export interface ProjectTask {
@@ -68,6 +71,7 @@ export interface ProjectTask {
   status: 'pending' | 'assigned' | 'in-progress' | 'review' | 'completed' | 'failed'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   assignedAgentInstanceId?: string
+  assignedAgentName?: string
   category: string
   createdAt: Date
   updatedAt: Date
@@ -75,6 +79,25 @@ export interface ProjectTask {
   creditsUsed: number
   result?: string
   resultFiles?: string[]
+}
+
+export interface TaskPlan {
+  id: string
+  title: string
+  description: string
+  requirements: string[]
+  tasks: TaskPlanItem[]
+  createdAt: Date
+}
+
+export interface TaskPlanItem {
+  id: string
+  title: string
+  description: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  category: string
+  suggestedAgentCategory: string
+  order: number
 }
 
 export interface ShowcaseItem {
@@ -147,10 +170,21 @@ interface AppState {
   chatMessages: ChatMessage[]
   addChatMessage: (message: ChatMessage) => void
 
+  // Workspace phase
+  workspacePhase: WorkspacePhase
+  setWorkspacePhase: (phase: WorkspacePhase) => void
+
   // Unified workspace messages
   workspaceMessages: WorkspaceMessage[]
   addWorkspaceMessage: (message: WorkspaceMessage) => void
   clearWorkspaceMessages: () => void
+
+  // Task plans (before execution)
+  currentPlan: TaskPlan | null
+  setCurrentPlan: (plan: TaskPlan | null) => void
+  updatePlanTask: (planTaskId: string, updates: Partial<TaskPlanItem>) => void
+  removePlanTask: (planTaskId: string) => void
+  addPlanTask: (task: TaskPlanItem) => void
 
   // Project tasks
   projectTasks: ProjectTask[]
@@ -398,9 +432,42 @@ export const useAppStore = create<AppState>((set, get) => ({
   chatMessages: [],
   addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
 
+  workspacePhase: 'idle',
+  setWorkspacePhase: (phase) => set({ workspacePhase: phase }),
+
   workspaceMessages: [],
   addWorkspaceMessage: (message) => set((state) => ({ workspaceMessages: [...state.workspaceMessages, message] })),
-  clearWorkspaceMessages: () => set({ workspaceMessages: [] }),
+  clearWorkspaceMessages: () => set({ workspaceMessages: [], workspacePhase: 'idle' }),
+
+  currentPlan: null,
+  setCurrentPlan: (plan) => set({ currentPlan: plan }),
+  updatePlanTask: (planTaskId, updates) => set((state) => {
+    if (!state.currentPlan) return state
+    return {
+      currentPlan: {
+        ...state.currentPlan,
+        tasks: state.currentPlan.tasks.map((t) => t.id === planTaskId ? { ...t, ...updates } : t),
+      },
+    }
+  }),
+  removePlanTask: (planTaskId) => set((state) => {
+    if (!state.currentPlan) return state
+    return {
+      currentPlan: {
+        ...state.currentPlan,
+        tasks: state.currentPlan.tasks.filter((t) => t.id !== planTaskId),
+      },
+    }
+  }),
+  addPlanTask: (task) => set((state) => {
+    if (!state.currentPlan) return state
+    return {
+      currentPlan: {
+        ...state.currentPlan,
+        tasks: [...state.currentPlan.tasks, task],
+      },
+    }
+  }),
 
   projectTasks: [],
   addProjectTask: (task) => set((state) => ({ projectTasks: [...state.projectTasks, task] })),
