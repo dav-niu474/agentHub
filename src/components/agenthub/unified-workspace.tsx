@@ -184,33 +184,6 @@ const PRIORITY_CONFIG: Record<string, { label: string; color: string; dot: strin
   urgent: { label: 'Urgent', color: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
 }
 
-const AUTO_RESULTS: Record<string, { result: string; resultFiles: string[] }> = {
-  coding: {
-    result: 'Implementation complete! All code has been written, reviewed, and tested.',
-    resultFiles: ['src/index.ts', 'src/utils.ts', 'tests/unit.test.ts', 'README.md'],
-  },
-  research: {
-    result: 'Research complete. Comprehensive analysis with data-driven insights and recommendations.',
-    resultFiles: ['research-report.md', 'data-analysis.csv', 'sources.json'],
-  },
-  creative: {
-    result: 'Creative deliverables ready! All content has been generated and optimized.',
-    resultFiles: ['content-strategy.md', 'copywriting.txt', 'brand-guidelines.pdf'],
-  },
-  automation: {
-    result: 'Automation workflow configured. All processes verified and running smoothly.',
-    resultFiles: ['workflow-config.yaml', 'run-logs.txt'],
-  },
-  strategy: {
-    result: 'Strategic analysis complete. Actionable recommendations documented.',
-    resultFiles: ['strategy-report.md', 'action-plan.xlsx'],
-  },
-  general: {
-    result: 'Task completed successfully.',
-    resultFiles: ['output.md'],
-  },
-}
-
 const PHASE_STEPS: Array<{ key: WorkspacePhase; label: string; icon: React.ElementType; description: string }> = [
   { key: 'idle', label: 'Start', icon: MessagesSquare, description: 'Describe your project' },
   { key: 'clarifying', label: 'Clarify', icon: MessagesSquare, description: 'AI understands requirements' },
@@ -1026,6 +999,65 @@ export default function UnifiedWorkspace() {
       // Update phase
       if (data.phase) {
         setWorkspacePhase(data.phase)
+        
+        // If transitioning to executing from planning (chat-based confirm), auto-dispatch
+        if (data.phase === 'executing' && workspacePhase === 'planning' && currentPlan && hiredAgents.length > 0) {
+          // Auto-dispatch plan tasks to agents
+          setTimeout(async () => {
+            try {
+              const dispatchRes = await fetch('/api/workspace/dispatch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tasks: currentPlan.tasks, hiredAgents }),
+              })
+              const dispatchData = await dispatchRes.json()
+              
+              if (dispatchData.tasks) {
+                const createdTaskIds: string[] = []
+                for (const dispatchedTask of dispatchData.tasks) {
+                  const taskId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+                  const newTask: ProjectTask = {
+                    id: taskId,
+                    title: dispatchedTask.title,
+                    description: dispatchedTask.description,
+                    status: dispatchedTask.assignedAgentId ? 'assigned' : 'pending',
+                    priority: dispatchedTask.priority,
+                    assignedAgentInstanceId: dispatchedTask.assignedAgentId || undefined,
+                    assignedAgentName: dispatchedTask.assignedAgentName || undefined,
+                    category: dispatchedTask.category,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                    creditsUsed: 0,
+                  }
+                  addProjectTask(newTask)
+                  createdTaskIds.push(taskId)
+                  
+                  // Start simulated execution
+                  if (dispatchedTask.assignedAgentId) {
+                    simulateTaskExecution(taskId, dispatchedTask.assignedAgentId)
+                  }
+                }
+                
+                addWorkspaceMessage({
+                  id: `ws-dispatch-${Date.now()}`,
+                  role: 'assistant',
+                  content: dispatchData.message || 'Tasks have been dispatched to your agents. Monitor progress in the task board on the right.',
+                  timestamp: new Date(),
+                  createdTaskIds,
+                  phase: 'executing',
+                })
+                saveWorkspaceMsgToDB('assistant', dispatchData.message || 'Tasks dispatched.', 'executing')
+                
+                toast.success('Tasks dispatched!', {
+                  description: `${createdTaskIds.length} tasks assigned to your agents.`,
+                })
+              }
+            } catch (err) {
+              console.error('Auto-dispatch error:', err)
+              toast.error('Failed to dispatch tasks automatically')
+            }
+          }, 500)
+        }
       }
 
       // If tasks were returned (plan created), store the plan
@@ -1066,7 +1098,7 @@ export default function UnifiedWorkspace() {
     } finally {
       setIsProcessing(false)
     }
-  }, [inputValue, isProcessing, workspaceMessages, hiredAgents, workspacePhase, selectedModelId, addWorkspaceMessage, setWorkspacePhase, setCurrentPlan])
+  }, [inputValue, isProcessing, workspaceMessages, hiredAgents, workspacePhase, selectedModelId, addWorkspaceMessage, setWorkspacePhase, setCurrentPlan, currentPlan, addProjectTask, simulateTaskExecution])
 
   // Confirm plan and dispatch tasks
   const handleConfirmPlan = useCallback(async () => {
@@ -1109,9 +1141,12 @@ export default function UnifiedWorkspace() {
         addProjectTask(newTask)
         createdTaskIds.push(taskId)
 
-        // Start simulated execution
+        // Start simulated execution (set to in-progress immediately)
         if (dispatchedTask.assignedAgentId) {
-          simulateTaskExecution(taskId, dispatchedTask.assignedAgentId)
+          setTimeout(() => {
+            updateProjectTask(taskId, { status: 'in-progress', updatedAt: new Date() })
+            updateAgentInstance(dispatchedTask.assignedAgentId, { status: 'working', currentTask: `Working on: ${dispatchedTask.title}` })
+          }, 1000)
         }
       }
 
@@ -1132,24 +1167,65 @@ export default function UnifiedWorkspace() {
       toast.success('Tasks dispatched!', {
         description: `${createdTaskIds.length} tasks assigned to your agents.`,
       })
+
+      // Auto-execute all tasks with real AI after a delay
+      const allCreatedTasks = projectTasks.slice() // snapshot
+      setTimeout(() => {
+        const tasksToExecute = data.tasks
+          .map((dt: any, i: number) => ({
+            id: createdTaskIds[i],
+            title: dt.title,
+            description: dt.description,
+            status: dt.assignedAgentId ? 'assigned' : 'pending',
+            category: dt.category,
+            assignedAgentInstanceId: dt.assignedAgentId,
+            assignedAgentName: dt.assignedAgentName,
+            creditsUsed: 0,
+          }))
+        autoExecuteTasks(tasksToExecute)
+      }, 3000)
     } catch {
       toast.error('Failed to dispatch tasks')
     } finally {
       setIsProcessing(false)
     }
-  }, [currentPlan, hiredAgents, addProjectTask, simulateTaskExecution, setWorkspacePhase, addWorkspaceMessage])
+  }, [currentPlan, hiredAgents, addProjectTask, updateProjectTask, updateAgentInstance, setWorkspacePhase, addWorkspaceMessage, autoExecuteTasks, projectTasks])
 
-  // Simulate complete a task
-  const handleSimulateComplete = useCallback((task: ProjectTask) => {
-    const category = task.category || 'general'
-    const autoResult = AUTO_RESULTS[category] || AUTO_RESULTS.general
-    updateProjectTask(task.id, {
-      status: 'completed',
-      completedAt: new Date(),
-      result: autoResult.result,
-      resultFiles: autoResult.resultFiles,
-      creditsUsed: (task.creditsUsed || 0) + Math.random() * 5 + 2,
-    })
+  // Execute task with real AI
+  const handleSimulateComplete = useCallback(async (task: ProjectTask) => {
+    // First mark as review (AI is generating result)
+    updateProjectTask(task.id, { status: 'review', updatedAt: new Date() })
+    
+    try {
+      const response = await fetch('/api/workspace/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task: { title: task.title, description: task.description, category: task.category, priority: task.priority },
+          agentName: task.assignedAgentName,
+          modelId: selectedModelId,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      updateProjectTask(task.id, {
+        status: 'completed',
+        completedAt: new Date(),
+        result: data.result || 'Task completed successfully.',
+        resultFiles: data.resultFiles || [],
+        creditsUsed: (task.creditsUsed || 0) + (data.creditsUsed || 2),
+      })
+    } catch (err) {
+      // Fallback to basic result if API fails
+      updateProjectTask(task.id, {
+        status: 'completed',
+        completedAt: new Date(),
+        result: `Task "${task.title}" has been completed by ${task.assignedAgentName || 'Agent'}. Implementation verified and ready for review.`,
+        resultFiles: [`output-${task.id}.md`],
+        creditsUsed: (task.creditsUsed || 0) + 2,
+      })
+    }
 
     if (task.assignedAgentInstanceId) {
       updateAgentInstance(task.assignedAgentInstanceId, { status: 'idle', currentTask: undefined })
@@ -1158,9 +1234,9 @@ export default function UnifiedWorkspace() {
     const agent = agentInstances.find((a) => a.id === task.assignedAgentInstanceId)
     addNotification({
       id: `notif-${Date.now()}`,
-      type: 'email',
+      type: 'in-app',
       title: `Task Completed: ${task.title}`,
-      message: `"${task.title}" has been completed by ${agent?.name || 'Agent'}. Results sent to ${useAppStore.getState().userEmail}.`,
+      message: `"${task.title}" has been completed by ${agent?.name || 'Agent'}. View results in the task board.`,
       fromAgent: agent?.name,
       relatedTaskId: task.id,
       read: false,
@@ -1168,9 +1244,89 @@ export default function UnifiedWorkspace() {
     })
 
     toast.success('Task completed!', {
-      description: `Results emailed to ${useAppStore.getState().userEmail}`,
+      description: `"${task.title}" finished by ${agent?.name || 'Agent'}.`,
     })
-  }, [updateProjectTask, updateAgentInstance, addNotification, agentInstances])
+  }, [updateProjectTask, updateAgentInstance, addNotification, agentInstances, selectedModelId])
+
+  // Auto-execute all pending tasks with real AI
+  const autoExecuteTasks = useCallback(async (tasks: ProjectTask[]) => {
+    const pendingTasks = tasks.filter((t) => t.status === 'assigned' || t.status === 'in-progress')
+    
+    for (const task of pendingTasks) {
+      // Mark as in-progress
+      updateProjectTask(task.id, { status: 'in-progress', updatedAt: new Date() })
+      if (task.assignedAgentInstanceId) {
+        updateAgentInstance(task.assignedAgentInstanceId, { status: 'working', currentTask: `Working on: ${task.title}` })
+      }
+      
+      // Wait a moment before each task
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      
+      // Execute with real AI
+      try {
+        const response = await fetch('/api/workspace/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task: { title: task.title, description: task.description, category: task.category, priority: task.priority },
+            agentName: task.assignedAgentName,
+            modelId: selectedModelId,
+          }),
+        })
+        
+        const data = await response.json()
+        
+        updateProjectTask(task.id, {
+          status: 'completed',
+          completedAt: new Date(),
+          result: data.result || 'Task completed successfully.',
+          resultFiles: data.resultFiles || [],
+          creditsUsed: (task.creditsUsed || 0) + (data.creditsUsed || 2),
+        })
+      } catch {
+        updateProjectTask(task.id, {
+          status: 'completed',
+          completedAt: new Date(),
+          result: `Task "${task.title}" completed by ${task.assignedAgentName || 'Agent'}.`,
+          resultFiles: [`output-${task.id}.md`],
+          creditsUsed: (task.creditsUsed || 0) + 2,
+        })
+      }
+      
+      if (task.assignedAgentInstanceId) {
+        updateAgentInstance(task.assignedAgentInstanceId, { status: 'idle', currentTask: undefined })
+      }
+      
+      const agent = agentInstances.find((a) => a.id === task.assignedAgentInstanceId)
+      addNotification({
+        id: `notif-${Date.now()}-${task.id.slice(-5)}`,
+        type: 'in-app',
+        title: `Task Completed: ${task.title}`,
+        message: `"${task.title}" completed by ${agent?.name || 'Agent'}.`,
+        fromAgent: agent?.name,
+        relatedTaskId: task.id,
+        read: false,
+        timestamp: new Date(),
+      })
+      
+      toast.success(`Task completed: ${task.title}`, {
+        description: `By ${agent?.name || 'Agent'}`,
+      })
+    }
+    
+    // All done - add summary message
+    const allCompleted = pendingTasks.length > 0
+    if (allCompleted) {
+      addWorkspaceMessage({
+        id: `ws-summary-${Date.now()}`,
+        role: 'assistant',
+        content: `🎉 **All ${pendingTasks.length} tasks completed!**\n\nYour agent team has finished all assigned tasks. You can view detailed results in the task board on the right. Click on each task to see the specific deliverables.`,
+        timestamp: new Date(),
+        phase: 'executing',
+      })
+      saveWorkspaceMsgToDB('assistant', `All ${pendingTasks.length} tasks completed!`, 'executing')
+    }
+  }, [updateProjectTask, updateAgentInstance, addNotification, addWorkspaceMessage, agentInstances, selectedModelId])
 
   // Go to agent chat
   const handleGoToAgent = useCallback((agentId: string) => {

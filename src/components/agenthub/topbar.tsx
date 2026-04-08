@@ -270,7 +270,7 @@ export function Topbar() {
               <ChevronDown className="size-3.5 text-gray-400 shrink-0" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
+          <PopoverContent align="end" sideOffset={8} className="w-80 p-0 overflow-hidden">
             <div className="px-3 py-2.5 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-900">Select AI Model</p>
               <p className="text-xs text-gray-500 mt-0.5">

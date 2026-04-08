@@ -117,35 +117,6 @@ const PROVIDER_COLORS: Record<string, string> = {
   nvidia: 'bg-green-600',
 }
 
-const AGENT_RESPONSES: Record<string, string[]> = {
-  'claude-code': [
-    "I've analyzed your codebase structure and here's what I found. Let me break this down step by step.\n\n**Key observations:**\n1. The project follows a clean architecture pattern\n2. TypeScript types are well-defined\n3. There are a few optimization opportunities\n\nWould you like me to proceed with the implementation?",
-    "Great question! Based on my analysis, I recommend the following approach:\n\n```typescript\n// Implement the feature with clean separation of concerns\nexport async function handleRequest(req: Request) {\n  const data = await req.json()\n  // Process and validate\n  return new Response(JSON.stringify(result))\n}\n```\n\nThis maintains type safety while being performant.",
-    "I've completed the refactoring. Here's a summary of changes:\n\n- Extracted shared utilities into `/lib/utils.ts`\n- Improved type coverage from 78% to 95%\n- Reduced bundle size by 12%\n- All tests passing ✅",
-  ],
-  'codex': [
-    "I'm setting up the project in a cloud sandbox now. Give me a moment to scaffold the full structure...\n\n**Project Structure:**\n```\n├── src/\n│   ├── components/\n│   ├── hooks/\n│   ├── lib/\n│   └── app/\n├── tests/\n├── prisma/\n└── package.json\n```\n\nDependencies are being installed. ETA: ~2 minutes.",
-    "The project is ready! I've generated the full application with:\n\n- ✅ Authentication system\n- ✅ Database schema & migrations\n- ✅ API endpoints\n- ✅ Frontend components\n- ✅ Test suite (47 tests, all passing)\n\nYou can review the output files in the shared workspace.",
-  ],
-  'openclaw': [
-    "Starting the automation workflow now. I'll coordinate the following tasks:\n\n1. **Browser Automation**: Navigating to target site\n2. **Data Extraction**: Pulling relevant information\n3. **File Management**: Organizing outputs\n4. **Report Generation**: Compiling results\n\nI'm monitoring for any issues. I'll send you a notification when complete.",
-    "I've completed the automated workflow successfully! 🎉\n\n**Results:**\n- 156 data points extracted\n- 12 files organized and cataloged\n- Summary report generated\n\nI've prepared the deliverables in your workspace. Should I also send the report via email?",
-  ],
-  'deep-research': [
-    "Beginning deep research analysis. I'll scan through the available databases and literature.\n\n**Research Parameters:**\n- Scope: Industry-wide analysis\n- Depth: 1,000+ sources\n- Timeframe: Last 24 months\n\nI expect the comprehensive report to take approximately 10-15 minutes. I'll notify you when it's ready.",
-    "Research complete! Here's the executive summary:\n\n**Key Findings:**\n1. Market size is projected to grow 340% by 2027\n2. Top 3 players hold 67% market share\n3. AI adoption is the primary growth driver\n\n**Full Report:** 10,247 words across 8 sections with 23 charts and 45 citations.\n\nWould you like me to dive deeper into any specific section?",
-  ],
-}
-
-// ==================== Helper: generate agent response ====================
-
-function generateAgentResponse(agentTypeId: string, userMessage: string): string {
-  const responses = AGENT_RESPONSES[agentTypeId] || AGENT_RESPONSES['claude-code']
-  // Pick a response based on message hash for variety
-  const idx = userMessage.length % responses.length
-  return responses[idx]
-}
-
 // ==================== Chat Message Bubble ====================
 
 function ChatBubble({ message, agentName }: { message: ChatMessage; agentName: string }) {
@@ -391,7 +362,7 @@ export default function AgentChatWorkspace() {
     projectTasks,
     updateProjectTask,
     setViewMode,
-    addNotification,
+    selectedModelId,
   } = useAppStore()
 
   const [inputValue, setInputValue] = useState('')
@@ -484,12 +455,25 @@ export default function AgentChatWorkspace() {
     // Update agent status to working
     updateAgentInstance(activeAgent.id, { status: 'working', currentTask: 'Responding...' })
 
-    // Check if this is a task-related message
-    const isTaskRequest = inputValue.toLowerCase().includes('task') || inputValue.toLowerCase().includes('完成') || inputValue.toLowerCase().includes('帮我')
+    // Call real AI API for agent response
+    try {
+      const agentHistory = agentMessages
+        .filter((m) => m.role === 'user' || m.role === 'assistant')
+        .map((m) => ({ role: m.role, content: m.content }))
 
-    // Simulate agent response delay
-    setTimeout(() => {
-      const responseText = generateAgentResponse(activeAgent.agentTypeId, inputValue)
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: inputValue.trim(),
+          agentId: activeAgent.agentTypeId,
+          modelId: selectedModelId,
+          chatHistory: agentHistory,
+        }),
+      })
+
+      const data = await response.json()
+      const responseText = data.message || 'Sorry, I encountered an error processing your request.'
 
       const agentMessage: ChatMessage = {
         id: `msg-${Date.now()}-resp`,
@@ -499,32 +483,27 @@ export default function AgentChatWorkspace() {
         timestamp: new Date(),
         metadata: {
           type: 'text',
-          creditsCost: Math.random() * 3 + 0.5,
+          creditsCost: data.creditsUsed || Math.random() * 3 + 0.5,
         },
       }
       addChatMessage(agentMessage)
       saveMessageToDB(activeAgent.id, 'assistant', responseText)
+    } catch (err) {
+      const errorMsg = 'Sorry, I encountered a connection error. Please try again.'
+      const agentMessage: ChatMessage = {
+        id: `msg-${Date.now()}-error`,
+        agentInstanceId: activeAgent.id,
+        role: 'assistant',
+        content: errorMsg,
+        timestamp: new Date(),
+        metadata: { type: 'text' },
+      }
+      addChatMessage(agentMessage)
+    } finally {
       updateAgentInstance(activeAgent.id, { status: 'idle', currentTask: undefined })
       setIsTyping(false)
-
-      // If it was a task request, auto-assign a task
-      if (isTaskRequest) {
-        const taskId = `task-${Date.now()}`
-        addNotification({
-          id: `notif-${Date.now()}`,
-          type: 'in-app',
-          title: 'Task Auto-Assigned',
-          message: `"${inputValue.trim().slice(0, 40)}..." has been assigned to ${activeAgent.name}`,
-          fromAgent: activeAgent.name,
-          relatedTaskId: taskId,
-          read: false,
-          timestamp: new Date(),
-        })
-
-        updateAgentInstance(activeAgent.id, { status: 'working', currentTask: inputValue.trim().slice(0, 50) })
-      }
-    }, 1500 + Math.random() * 2000)
-  }, [inputValue, activeAgent, isTyping, addChatMessage, updateAgentInstance, addNotification, activeAgentType])
+    }
+  }, [inputValue, activeAgent, isTyping, addChatMessage, updateAgentInstance, selectedModelId, agentMessages])
 
   // Handle keyboard shortcut
   const handleKeyDown = (e: React.KeyboardEvent) => {
