@@ -10,6 +10,7 @@ import UnifiedWorkspace from '@/components/agenthub/unified-workspace'
 import AgentChatWorkspace from '@/components/agenthub/agent-chat'
 import AgentStore from '@/components/agenthub/agent-store'
 import TasksView from '@/components/agenthub/tasks-view'
+import SkillsView from '@/components/agenthub/skills-view'
 import ShowcaseView from '@/components/agenthub/showcase-view'
 import PricingView from '@/components/agenthub/pricing-view'
 import SettingsView from '@/components/agenthub/settings-view'
@@ -24,12 +25,13 @@ export default function Home() {
       <MobileDrawer />
       <Topbar />
 
-      <main className="h-full pt-[52px] md:pl-[80px]">
+      <main className="h-full pt-[52px] md:pl-[84px]">
         {viewMode === 'landing' && <LandingView />}
         {viewMode === 'workspace' && <UnifiedWorkspace />}
         {viewMode === 'agents' && <AgentStore />}
         {viewMode === 'agent-chat' && <AgentChatWorkspace />}
         {viewMode === 'tasks' && <TasksView />}
+        {viewMode === 'skills' && <SkillsView />}
         {viewMode === 'showcase' && <ShowcaseView />}
         {viewMode === 'pricing' && <PricingView />}
         {viewMode === 'settings' && <SettingsView />}

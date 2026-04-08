@@ -152,8 +152,11 @@ export default function LandingView() {
             </Badge>
 
             {/* Heading */}
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.1] tracking-tight mb-6">
-              Your 7×24 AI Computer
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-white leading-[1.08] tracking-tight mb-6">
+              Your 7×24 AI{' '}
+              <span className="bg-gradient-to-r from-orange-400 via-amber-300 to-yellow-300 bg-clip-text text-transparent">
+                Computer
+              </span>
             </h1>
 
             {/* Subheading */}
@@ -166,7 +169,7 @@ export default function LandingView() {
             <div className="flex flex-col sm:flex-row items-center gap-4">
               <Button
                 size="lg"
-                className="h-12 px-8 rounded-full bg-white text-gray-900 font-semibold text-base hover:bg-gray-100 shadow-lg shadow-white/20 transition-all"
+                className="h-12 px-8 rounded-full bg-white text-gray-900 font-bold text-base hover:bg-gray-50 shadow-xl shadow-white/10 transition-all hover:scale-[1.02]"
                 onClick={() => setViewMode('workspace')}
               >
                 Open Workspace
@@ -175,23 +178,24 @@ export default function LandingView() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 px-8 rounded-full border-white/30 text-white font-semibold text-base hover:bg-white/10 transition-all"
+                className="h-12 px-8 rounded-full border-white/25 text-white font-semibold text-base hover:bg-white/10 hover:border-white/40 transition-all"
                 onClick={() => setViewMode('showcase')}
               >
                 View Showcase
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
             {/* Stats */}
-            <div className="flex items-center justify-center gap-8 sm:gap-12 md:gap-16 mt-16">
+            <div className="flex items-center justify-center gap-10 sm:gap-14 md:gap-20 mt-16">
               {[
-                { value: '10+', label: 'Agents' },
+                { value: '10+', label: 'AI Agents' },
                 { value: '8', label: 'AI Models' },
-                { value: '10K+', label: 'Users' },
+                { value: '10K+', label: 'Active Users' },
               ].map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <p className="text-2xl md:text-3xl font-bold text-white">{stat.value}</p>
-                  <p className="text-sm text-gray-400 mt-1">{stat.label}</p>
+                  <p className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">{stat.value}</p>
+                  <p className="text-xs md:text-sm text-gray-400 mt-1 font-medium">{stat.label}</p>
                 </div>
               ))}
             </div>

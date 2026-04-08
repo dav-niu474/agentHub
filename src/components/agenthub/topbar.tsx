@@ -44,6 +44,7 @@ const VIEW_MODE_TITLES: Record<string, string> = {
   tasks: 'Tasks',
   showcase: 'Showcase',
   pricing: 'Pricing',
+  skills: 'Skills',
   settings: 'Settings',
 }
 
@@ -130,10 +131,10 @@ export function Topbar() {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 left-0 z-40 flex items-center h-[52px] transition-all duration-200',
-        'md:left-[80px]',
+        'fixed top-0 right-0 left-0 z-40 flex items-center h-[52px] transition-all duration-300',
+        'md:left-[84px]',
         scrolled
-          ? 'bg-white/80 backdrop-blur-lg border-b border-gray-200/60 shadow-sm'
+          ? 'bg-white/90 backdrop-blur-xl border-b border-gray-200/50 shadow-sm'
           : 'bg-transparent',
       )}
     >
@@ -151,8 +152,8 @@ export function Topbar() {
         </Button>
 
         {/* Logo */}
-        <span className="text-lg font-bold tracking-tight text-gray-900 select-none whitespace-nowrap">
-          Agent<span className="text-orange-500">Hub</span>
+        <span className="text-lg font-extrabold tracking-tight text-gray-900 select-none whitespace-nowrap">
+          Agent<span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">Hub</span>
         </span>
 
         {/* Current page title */}

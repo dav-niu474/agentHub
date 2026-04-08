@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewMode = 'landing' | 'workspace' | 'agents' | 'agent-chat' | 'tasks' | 'showcase' | 'pricing' | 'settings'
+export type ViewMode = 'landing' | 'workspace' | 'agents' | 'agent-chat' | 'tasks' | 'showcase' | 'pricing' | 'skills' | 'settings'
 
 // ==================== Type Definitions ====================
 
@@ -95,6 +95,17 @@ export interface PlanTier {
   popular?: boolean
 }
 
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  icon: string
+  category: 'web-search' | 'image-gen' | 'tts' | 'asr' | 'video-gen' | 'code' | 'data' | 'communication'
+  enabled: boolean
+  provider: string
+  config?: Record<string, string>
+}
+
 export interface Notification {
   id: string
   type: 'email' | 'in-app'
@@ -155,6 +166,11 @@ interface AppState {
   // Showcase
   showcaseItems: ShowcaseItem[]
   setShowcaseItems: (items: ShowcaseItem[]) => void
+
+  // Skills
+  skills: Skill[]
+  setSkills: (skills: Skill[]) => void
+  toggleSkill: (id: string) => void
 
   // Plans
   plans: PlanTier[]
@@ -339,6 +355,19 @@ export const DEFAULT_PLANS: PlanTier[] = [
   { id: 'team', name: 'Team', creditsPerMonth: 20000, price: 99, features: ['All 8 models included', 'Unlimited deep research', '5 team seats', 'Dedicated account manager', 'API access'] },
 ]
 
+export const DEFAULT_SKILLS: Skill[] = [
+  { id: 'web-search', name: 'Web Search', description: 'Search the web in real-time to get latest information, news, and data.', icon: 'search', category: 'web-search', enabled: true, provider: 'Built-in' },
+  { id: 'page-reader', name: 'Page Reader', description: 'Extract and read content from any web page URL automatically.', icon: 'globe', category: 'web-search', enabled: true, provider: 'Built-in' },
+  { id: 'image-gen', name: 'Image Generation', description: 'Generate images from text descriptions using AI models.', icon: 'image', category: 'image-gen', enabled: false, provider: 'Stable Diffusion' },
+  { id: 'tts', name: 'Text to Speech', description: 'Convert text to natural-sounding speech with multiple voice options.', icon: 'mic', category: 'tts', enabled: false, provider: 'OpenAI' },
+  { id: 'asr', name: 'Speech Recognition', description: 'Transcribe audio files and speech to text with high accuracy.', icon: 'headphones', category: 'asr', enabled: false, provider: 'Whisper' },
+  { id: 'video-gen', name: 'Video Generation', description: 'Generate short videos from text prompts or images.', icon: 'video', category: 'video-gen', enabled: false, provider: 'Runway' },
+  { id: 'code-exec', name: 'Code Execution', description: 'Run code snippets in sandboxed environments with multiple languages.', icon: 'code', category: 'code', enabled: true, provider: 'Built-in' },
+  { id: 'data-analysis', name: 'Data Analysis', description: 'Analyze CSV, JSON data and generate charts and insights.', icon: 'bar-chart', category: 'data', enabled: false, provider: 'Built-in' },
+  { id: 'email-sender', name: 'Email Sender', description: 'Send automated email notifications for completed tasks.', icon: 'mail', category: 'communication', enabled: true, provider: 'Built-in' },
+  { id: 'file-manager', name: 'File Manager', description: 'Upload, organize, and manage project files and deliverables.', icon: 'folder', category: 'data', enabled: true, provider: 'Built-in' },
+]
+
 // ==================== Store ====================
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -390,6 +419,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showcaseItems: DEFAULT_SHOWCASE,
   setShowcaseItems: (items) => set({ showcaseItems: items }),
+
+  skills: DEFAULT_SKILLS,
+  setSkills: (skills) => set({ skills }),
+  toggleSkill: (id) => set((state) => ({
+    skills: state.skills.map((s) => s.id === id ? { ...s, enabled: !s.enabled } : s),
+  })),
 
   plans: DEFAULT_PLANS,
 

@@ -6,9 +6,9 @@ import {
   ListChecks,
   Eye,
   CreditCard,
+  Sparkles,
   Settings,
   Coins,
-  MessageSquare,
   LayoutDashboard,
   type LucideIcon,
 } from 'lucide-react'
@@ -34,9 +34,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: 'Workspace', viewMode: 'workspace' },
   { icon: House, label: 'Home', viewMode: 'landing' },
+  { icon: LayoutDashboard, label: 'Workspace', viewMode: 'workspace' },
   { icon: Bot, label: 'Agent Store', viewMode: 'agents' },
+  { icon: Sparkles, label: 'Skills', viewMode: 'skills' },
   { icon: ListChecks, label: 'Tasks', viewMode: 'tasks' },
   { icon: Eye, label: 'Showcase', viewMode: 'showcase' },
   { icon: CreditCard, label: 'Pricing', viewMode: 'pricing' },
@@ -44,14 +45,14 @@ const NAV_ITEMS: NavItem[] = [
 ]
 
 const PROVIDER_COLORS: Record<string, string> = {
-  anthropic: 'bg-orange-500',
-  openai: 'bg-emerald-500',
-  google: 'bg-blue-500',
-  deepseek: 'bg-cyan-600',
-  meta: 'bg-violet-500',
-  cursor: 'bg-indigo-500',
-  'open source': 'bg-teal-500',
-  teamo: 'bg-rose-500',
+  anthropic: 'bg-gradient-to-br from-orange-500 to-amber-500',
+  openai: 'bg-gradient-to-br from-emerald-500 to-teal-500',
+  google: 'bg-gradient-to-br from-blue-500 to-sky-500',
+  deepseek: 'bg-gradient-to-br from-cyan-600 to-sky-500',
+  meta: 'bg-gradient-to-br from-violet-500 to-purple-500',
+  cursor: 'bg-gradient-to-br from-indigo-500 to-violet-500',
+  'open source': 'bg-gradient-to-br from-teal-500 to-emerald-500',
+  teamo: 'bg-gradient-to-br from-rose-500 to-pink-500',
 }
 
 const PROVIDER_LETTERS: Record<string, string> = {
@@ -66,17 +67,10 @@ const PROVIDER_LETTERS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  idle: 'bg-gray-300',
+  idle: 'bg-gray-400',
   working: 'bg-emerald-500 animate-pulse',
   completed: 'bg-blue-400',
   error: 'bg-red-500',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  idle: 'Idle',
-  working: 'Working',
-  completed: 'Completed',
-  error: 'Error',
 }
 
 // ---------- Main Component ----------
@@ -127,8 +121,8 @@ export default function MobileDrawer() {
       <SheetContent side="left" className="w-72 p-0">
         <SheetHeader className="px-5 pt-6 pb-4">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold tracking-tight text-gray-900">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-slate-600">
-              <span className="text-white text-xs font-bold">AH</span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 shadow-md">
+              <span className="text-white text-xs font-black">AH</span>
             </div>
             Agent<span className="text-orange-500">Hub</span>
           </SheetTitle>
@@ -147,10 +141,10 @@ export default function MobileDrawer() {
                 variant="ghost"
                 onClick={() => handleNavClick(item.viewMode)}
                 className={cn(
-                  'w-full justify-start gap-3 h-11 px-3 rounded-lg text-sm font-medium transition-all',
+                  'w-full justify-start gap-3 h-11 px-3 rounded-xl text-sm font-medium transition-all',
                   isActive
-                    ? 'bg-slate-900 text-white hover:bg-slate-800 hover:text-white'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                    ? 'bg-gradient-to-r from-slate-800 to-slate-900 text-white hover:from-slate-700 hover:to-slate-800 hover:text-white shadow-md shadow-slate-900/20'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
                 )}
               >
                 <Icon className="size-4 shrink-0" />
@@ -165,14 +159,14 @@ export default function MobileDrawer() {
           <>
             <Separator />
             <div className="px-5 py-3">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
                 My Agents ({hiredAgents.length})
               </p>
               <ScrollArea className="max-h-[200px]">
                 <div className="space-y-1">
                   {hiredAgents.map((agent) => {
                     const providerLower = agent.provider.toLowerCase()
-                    const bgColor = PROVIDER_COLORS[providerLower] || 'bg-gray-500'
+                    const bgColor = PROVIDER_COLORS[providerLower] || 'bg-gradient-to-br from-gray-400 to-gray-500'
                     const letter = PROVIDER_LETTERS[providerLower] || agent.name.slice(0, 2).toUpperCase()
                     const statusColor = STATUS_COLORS[agent.status] || STATUS_COLORS.idle
                     const isActive = viewMode === 'agent-chat' && activeAgentInstanceId === agent.id
@@ -183,16 +177,16 @@ export default function MobileDrawer() {
                         variant="ghost"
                         onClick={() => handleAgentClick(agent.id)}
                         className={cn(
-                          'w-full justify-start gap-3 h-10 px-3 rounded-lg text-sm transition-all',
+                          'w-full justify-start gap-3 h-10 px-3 rounded-xl text-sm transition-all',
                           isActive
                             ? 'bg-slate-900 text-white hover:bg-slate-800 hover:text-white'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
                         )}
                       >
-                        <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0', bgColor)}>
+                        <span className={cn('h-7 w-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 shadow-sm', bgColor)}>
                           {letter}
                         </span>
-                        <span className="truncate">{agent.name}</span>
+                        <span className="truncate font-medium">{agent.name}</span>
                         <span className={cn('ml-auto h-2 w-2 rounded-full shrink-0', statusColor)} />
                       </Button>
                     )
@@ -221,7 +215,7 @@ export default function MobileDrawer() {
           {/* User info */}
           <div className="flex items-center gap-3">
             <Avatar className="size-9">
-              <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-orange-400 to-amber-500 text-white text-xs font-bold shadow-sm">
                 {initials}
               </AvatarFallback>
             </Avatar>
