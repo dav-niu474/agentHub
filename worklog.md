@@ -48,21 +48,51 @@ Work Log:
   - PhasePipeline component: Visual 4-step indicator (Start → Clarify → Plan → Execute) with progress animation
   - EmptyChatState: Shows 3-step flow explanation with suggested prompts
   - Chat bubbles now show phase badges indicating current workflow stage
-  - PlanPanel: Right-side panel during planning phase with:
-    - Requirements checklist extracted from AI understanding
-    - Editable task cards (inline edit title/description, change priority/category)
-    - Add/remove tasks
-    - "Confirm & Execute" button
-  - AddPlanTaskDialog: Dialog for adding new tasks to the plan
+  - PlanPanel: Right-side panel during planning phase with editable tasks
   - Quick action chips during planning phase (confirm/execute, add tasks)
   - Context-aware placeholder text that changes per phase
   - Reset button to clear workspace and start over
-  - Phase-aware status display in header
 
 Stage Summary:
 - Full 3-phase AI workflow implemented: Clarify → Plan → Execute
-- AI uses LLM (z-ai-web-dev-sdk) for intelligent requirement understanding and task planning
+- AI uses LLM for intelligent requirement understanding and task planning
 - Task plans are editable before execution (add/remove/edit tasks, change priorities)
 - Agent assignment uses smart category matching with workload balancing
-- Visual phase pipeline shows current progress through the workflow
 - ESLint passes with zero errors
+
+---
+Task ID: 10
+Agent: Main Orchestrator
+Task: Add NVIDIA NIM AI models, Git version control, Vercel deployment
+
+Work Log:
+- Created src/lib/nvidia-nim.ts: NVIDIA NIM API client
+  - Supports Llama 3.1 Nemotron 70B (primary) and Mistral NeMo 12B (fallback)
+  - OpenAI-compatible API format at integrate.api.nvidia.com/v1
+  - callNVIDIA() and callNVIDIAWithFallback() helper functions
+  - Auto-fallback from primary to secondary model on failure
+- Updated .env: added NVIDIA_API_KEY
+- Updated src/app/api/workspace/chat/route.ts: replaced z-ai-web-dev-sdk with NVIDIA NIM
+  - Primary model: meta/llama-3.1-70b-instruct via NVIDIA NIM
+  - Fallback model: mistralai/mistral-nemo-12b-instruct
+  - Returns model name in API response for transparency
+- Updated src/store/app-store.ts: added 2 NVIDIA models to DEFAULT_MODELS
+  - Llama 3.1 Nemotron 70B (NVIDIA, free tier)
+  - Mistral NeMo 12B (NVIDIA, free tier)
+- Updated provider colors across all components (sidebar, unified-workspace, agent-chat, tasks-view)
+  - Added 'nvidia' provider with green gradient brand color and 'NV' letter
+- Git setup:
+  - Configured user as dav-niu474
+  - Added remote origin: https://github.com/dav-niu474/agentHub.git
+  - Committed and pushed to main branch
+- Vercel deployment:
+  - Installed Vercel CLI
+  - Deployed to dav-niu474s-projects/my-project
+  - Set NVIDIA_API_KEY and DATABASE_URL as production environment variables
+  - Production deployment successful: https://my-project-rho-brown-94.vercel.app
+
+Stage Summary:
+- NVIDIA NIM integrated as primary AI backend with Llama 3.1 Nemotron 70B
+- Code pushed to GitHub: https://github.com/dav-niu474/agentHub
+- Deployed to Vercel: https://my-project-rho-brown-94.vercel.app
+- ESLint passes, dev server HTTP 200
