@@ -239,6 +239,8 @@ export const DEFAULT_MODELS: AIModel[] = [
   { id: 'gemini-2-5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', icon: 'google', creditsPerConversation: 0.3, description: 'Fast Gemini model', tier: 'free' },
   { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', icon: 'deepseek', creditsPerConversation: 0.5, description: 'Efficient open-source model', tier: 'free' },
   { id: 'llama-4-maverick', name: 'Llama 4 Maverick', provider: 'Meta', icon: 'meta', creditsPerConversation: 0.5, description: 'Meta open-source model', tier: 'pro' },
+  { id: 'nvidia-llama-3.1-nemotron-70b', name: 'Llama 3.1 Nemotron 70B', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 1, description: 'NVIDIA NIM hosted Llama 3.1 Nemotron 70B for high-quality instruction following', tier: 'free' },
+  { id: 'nvidia-mistral-nemo-12b', name: 'Mistral NeMo 12B', provider: 'NVIDIA', icon: 'nvidia', creditsPerConversation: 0.3, description: 'NVIDIA NIM hosted Mistral NeMo 12B for fast efficient inference', tier: 'free' },
 ]
 
 export const DEFAULT_AGENT_TYPES: AgentType[] = [

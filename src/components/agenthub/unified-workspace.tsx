@@ -101,6 +101,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   cursor: 'bg-gradient-to-br from-indigo-500 to-violet-500',
   'open source': 'bg-gradient-to-br from-teal-500 to-emerald-500',
   teamo: 'bg-gradient-to-br from-rose-500 to-pink-500',
+  nvidia: 'bg-gradient-to-br from-green-600 to-emerald-500',
 }
 
 const PROVIDER_LETTERS: Record<string, string> = {
@@ -112,6 +113,7 @@ const PROVIDER_LETTERS: Record<string, string> = {
   cursor: 'CU',
   'open source': 'OC',
   teamo: 'TM',
+  nvidia: 'NV',
 }
 
 const CATEGORY_COLORS: Record<string, string> = {

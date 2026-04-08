@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import { callNVIDIA, NIM_MODELS } from '@/lib/nvidia-nim'
 
 interface HiredAgent {
   id: string
@@ -77,22 +77,18 @@ function matchAgentToCategory(
   agents: HiredAgent[],
   usedAgentIds: Set<string>
 ): HiredAgent | null {
-  // Find agents matching the category
   const matching = agents.filter(
     (a) => a.category === category && !usedAgentIds.has(a.id) && a.status !== 'working'
   )
 
   if (matching.length > 0) {
-    // Prefer idle agents
     const idle = matching.find((a) => a.status === 'idle')
     return idle || matching[0]
   }
 
-  // Fallback: any idle agent not yet used
   const anyIdle = agents.find((a) => a.status === 'idle' && !usedAgentIds.has(a.id))
   if (anyIdle) return anyIdle
 
-  // Last resort: round-robin to any available agent
   const anyAvailable = agents.find((a) => !usedAgentIds.has(a.id))
   if (anyAvailable) return anyAvailable
 
@@ -100,20 +96,48 @@ function matchAgentToCategory(
 }
 
 async function callLLM(systemPrompt: string, conversationHistory: Array<{ role: string; content: string }>, userMessage: string): Promise<string> {
-  const zai = await ZAI.create()
-
-  const messages = [
-    { role: 'assistant' as const, content: systemPrompt },
-    ...conversationHistory,
-    { role: 'user' as const, content: userMessage },
-  ]
-
-  const completion = await zai.chat.completions.create({
-    messages,
-    thinking: { type: 'disabled' },
-  })
-
-  return completion.choices[0]?.message?.content || ''
+  try {
+    const response = await callNVIDIA(
+      [
+        { role: 'system', content: systemPrompt },
+        ...conversationHistory.map((m) => ({
+          role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+          content: m.content,
+        })),
+        { role: 'user', content: userMessage },
+      ],
+      {
+        model: NIM_MODELS['nvidia-llama-3.1-nemotron-70b'].id,
+        temperature: 0.6,
+        max_tokens: 2048,
+      }
+    )
+    return response
+  } catch (error) {
+    console.error('NVIDIA NIM call failed, trying fallback model:', error)
+    try {
+      // Fallback to Mistral NeMo 12B
+      const response = await callNVIDIA(
+        [
+          { role: 'system', content: systemPrompt },
+          ...conversationHistory.map((m) => ({
+            role: (m.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+            content: m.content,
+          })),
+          { role: 'user', content: userMessage },
+        ],
+        {
+          model: NIM_MODELS['nvidia-mistral-nemo-12b'].id,
+          temperature: 0.6,
+          max_tokens: 2048,
+        }
+      )
+      return response
+    } catch (fallbackError) {
+      console.error('NVIDIA NIM fallback also failed:', fallbackError)
+      throw new Error('All NVIDIA NIM models failed')
+    }
+  }
 }
 
 // ==================== Main Handler ====================
@@ -121,7 +145,7 @@ async function callLLM(systemPrompt: string, conversationHistory: Array<{ role: 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { message, chatHistory, hiredAgents, currentPhase, planRequirements } = body
+    const { message, chatHistory, hiredAgents, currentPhase } = body
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -134,7 +158,6 @@ export async function POST(request: NextRequest) {
     let response = ''
     let tasks: PlanTask[] = []
     let newPhase = phase
-    let planRequirements: string[] = []
 
     // ==================== PHASE: Clarifying ====================
     if (phase === 'idle' || phase === 'clarifying') {
@@ -142,12 +165,10 @@ export async function POST(request: NextRequest) {
       const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
 
       response = aiResponse
-      planRequirements = planRequirements || []
 
       // Check if AI is ready to plan
       if (aiResponse.includes('[READY_TO_PLAN]')) {
         newPhase = 'planning'
-        // Clean the marker from the response
         response = aiResponse.replace('[READY_TO_PLAN]', '').trim()
 
         // Auto-generate the plan immediately
@@ -156,14 +177,11 @@ export async function POST(request: NextRequest) {
         try {
           const planResponse = await callLLM(planSystemPrompt, [], 'Create a detailed task plan for this project.')
 
-          // Try to parse JSON
           let planJson
           try {
-            // Clean up potential markdown code fences
             const cleaned = planResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
             planJson = JSON.parse(cleaned)
           } catch {
-            // If JSON parse fails, try to extract JSON from the response
             const jsonMatch = planResponse.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
               planJson = JSON.parse(jsonMatch[0])
@@ -192,11 +210,10 @@ export async function POST(request: NextRequest) {
         newPhase = 'clarifying'
       }
     }
-    // ==================== PHASE: Planning (user is reviewing/editing plan) ====================
+    // ==================== PHASE: Planning ====================
     else if (phase === 'planning') {
       const lower = message.toLowerCase()
 
-      // User confirms the plan
       if (
         lower.includes('confirm') ||
         lower.includes('execute') ||
@@ -208,27 +225,21 @@ export async function POST(request: NextRequest) {
         lower.includes('执行') ||
         lower.includes('确认')
       ) {
-        // The frontend will send the current plan tasks for execution
         newPhase = 'executing'
         response = `✅ **Plan confirmed!** I'm now dispatching tasks to your agent team. You can monitor progress in the task board.`
-      }
-      // User wants to modify the plan - AI helps adjust
-      else if (
+      } else if (
         lower.includes('add task') ||
         lower.includes('remove') ||
         lower.includes('change') ||
         lower.includes('modify') ||
         lower.includes('edit') ||
-        lower.includes('add a task') ||
         lower.includes('调整') ||
         lower.includes('修改') ||
         lower.includes('增加')
       ) {
         newPhase = 'planning'
         response = `Sure! You can directly edit the task plan in the panel on the right:\n\n- ✏️ Click on any task title or description to edit it\n- ➕ Use "Add Task" to add new tasks\n- 🗑️ Use the remove button to delete tasks\n- 📊 Adjust priority levels as needed\n\nOnce you're happy with the plan, type **"confirm"** or **"execute"** to start dispatching tasks to your agents.`
-      }
-      // General question during planning
-      else {
+      } else {
         const context = buildConversationContext(history)
         const aiResponse = await callLLM(CLARIFY_SYSTEM_PROMPT, context, message)
         response = aiResponse
@@ -246,7 +257,6 @@ export async function POST(request: NextRequest) {
     else if (phase === 'executing') {
       const lower = message.toLowerCase()
 
-      // Status/progress queries
       if (lower.includes('progress') || lower.includes('status') || lower.includes('how')) {
         response = `Here's the current status of your project:\n\n**Active Tasks:** Check the task board on the right for real-time progress updates.\n\nYour agents are working autonomously. I'll notify you as soon as any task is completed. You can also click on an agent in the sidebar to see their individual workspace.`
       } else if (lower.includes('add task') || lower.includes('new task')) {
@@ -269,11 +279,7 @@ export async function POST(request: NextRequest) {
       for (const task of tasks) {
         const agent = matchAgentToCategory(task.suggestedAgentCategory || task.category, agents, usedIds)
         if (agent) {
-          assignments.push({
-            taskId: task.id,
-            agentId: agent.id,
-            agentName: agent.name,
-          })
+          assignments.push({ taskId: task.id, agentId: agent.id, agentName: agent.name })
           usedIds.add(agent.id)
         }
       }
@@ -284,6 +290,7 @@ export async function POST(request: NextRequest) {
       phase: newPhase,
       tasks: tasks.length > 0 ? tasks : undefined,
       assignments: assignments.length > 0 ? assignments : undefined,
+      model: 'NVIDIA Llama 3.1 Nemotron 70B (NIM)',
       timestamp: new Date().toISOString(),
     })
   } catch (error) {
@@ -291,7 +298,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'Internal server error',
-        message: 'Sorry, I encountered an error. Please try again.',
+        message: 'Sorry, I encountered an error processing your request. Please try again.',
         phase: 'idle',
       },
       { status: 500 }

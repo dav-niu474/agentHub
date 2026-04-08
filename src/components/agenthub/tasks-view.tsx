@@ -90,6 +90,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   cursor: 'bg-indigo-500',
   'open source': 'bg-teal-500',
   teamo: 'bg-rose-500',
+  nvidia: 'bg-green-600',
 }
 
 const STATUS_PROGRESS: Record<ProjectTask['status'], number> = {
