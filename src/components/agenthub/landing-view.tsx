@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from 'sonner'
 
 // ---------- Provider color mapping ----------
 
@@ -91,7 +92,7 @@ const TRUSTED_LOGOS = [
 // ---------- Main Component ----------
 
 export default function LandingView() {
-  const { setViewMode, addAgentInstance, agentInstances, setActiveAgentInstanceId } = useAppStore()
+  const { setViewMode, addAgentInstance, agentInstances } = useAppStore()
 
   const featuredAgents = DEFAULT_AGENT_TYPES.filter((a) =>
     FEATURED_AGENT_IDS.includes(a.id),
@@ -103,11 +104,9 @@ export default function LandingView() {
     // Check if already hired
     const exists = agentInstances.some((i) => i.agentTypeId === agentId)
     if (exists) {
-      const existingInst = agentInstances.find((i) => i.agentTypeId === agentId)
-      if (existingInst) {
-        setActiveAgentInstanceId(existingInst.id)
-        setViewMode('agent-chat')
-      }
+      toast.info(`${agentName} is already hired`, {
+        description: 'Find it in the left sidebar to start chatting.',
+      })
       return
     }
     const instanceId = `inst-${agentId}-${Date.now()}`
@@ -119,8 +118,9 @@ export default function LandingView() {
       status: 'idle',
       createdAt: new Date(),
     })
-    setActiveAgentInstanceId(instanceId)
-    setViewMode('agent-chat')
+    toast.success(`${agentName} hired!`, {
+      description: `${agentName} is now available in the sidebar. Click the icon to start chatting.`,
+    })
   }
 
   return (

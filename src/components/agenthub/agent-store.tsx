@@ -335,8 +335,6 @@ export default function AgentStore() {
     setSelectedAgentCategory,
     agentInstances,
     addAgentInstance,
-    setViewMode,
-    setActiveAgentInstanceId,
   } = useAppStore()
 
   const [loading, setLoading] = useState(true)
@@ -407,21 +405,11 @@ export default function AgentStore() {
         status: 'idle',
         createdAt: new Date(),
       })
-      setActiveAgentInstanceId(instanceId)
       toast.success(`${agent.name} hired!`, {
-        description: `${agent.name} is now available in the sidebar. Click to start chatting.`,
-        action: {
-          label: 'Start Chat',
-          onClick: () => {
-            setActiveAgentInstanceId(instanceId)
-            setViewMode('agent-chat')
-          },
-        },
+        description: `${agent.name} is now available in the sidebar. Click the icon to start chatting.`,
       })
-      setActiveAgentInstanceId(instanceId)
-      setViewMode('agent-chat')
     },
-    [addAgentInstance, setActiveAgentInstanceId, setViewMode, isHired],
+    [addAgentInstance, isHired],
   )
 
   return (
