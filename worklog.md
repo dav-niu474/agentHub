@@ -117,3 +117,52 @@ Stage Summary:
 - Git repo: https://github.com/dav-niu474/agentHub
 - Production URL: https://my-project-rho-brown-94.vercel.app (alias preserved)
 - ESLint passes, dev server HTTP 200
+
+---
+Task ID: 12
+Agent: Main Orchestrator
+Task: UI optimization, new AI models, chat persistence, Vercel deployment
+
+Work Log:
+- UI Optimization (across all components):
+  - Typography: upgraded to font-black, tighter tracking-tighter across hero, headings, logo
+  - Card hover: enhanced shadow effects (shadow-xl, shadow-gray-200/50)
+  - Chat bubbles: added MarkdownRenderer for rich content (bold, code blocks, lists, headers)
+  - Model dropdown: widened to w-80, added overflow-hidden and truncate for text
+  - Sidebar: smoother transitions with scale animations on hover/active states
+  - Landing page: refined hero section, step cards, footer with sticky layout
+  - Agent chat: improved typing indicator, gradient background, refined empty state
+  - Workspace: enhanced phase pipeline with emerald shadows, better task cards
+- New AI Models added to DEFAULT_MODELS:
+  - GLM 4.7 (NVIDIA NIM, 1 credit, free tier)
+  - GLM 5 (NVIDIA NIM, 2 credits, free tier) — SET AS DEFAULT
+  - Kimi 2.5 (NVIDIA NIM, 1 credit, free tier)
+- Model dropdown overflow fix (topbar.tsx):
+  - Widened PopoverContent from w-72 to w-80
+  - Added overflow-hidden to flex container, truncate on text elements
+  - Added nvidia provider colors to PROVIDER_BADGE and PROVIDER_DOT
+- Chat Persistence Backend:
+  - Updated Prisma schema from SQLite to PostgreSQL (Vercel Postgres/Neon)
+  - Created /api/chat/messages (POST/GET/DELETE) for agent chat persistence
+  - Created /api/chat/workspace (POST/GET/DELETE) for workspace chat persistence
+  - Uses default-user convention, graceful error handling
+- Chat Persistence Frontend:
+  - agent-chat.tsx: loads messages from DB on agent switch, saves on send/receive
+  - unified-workspace.tsx: loads workspace messages on mount, saves on send/receive, clears on reset
+  - Fire-and-forget API calls that don't block UI
+- Vercel Configuration:
+  - Updated DATABASE_URL to Vercel Postgres (Neon) connection string
+  - NVIDIA_API_KEY already configured on production
+  - Force deployed to clear build cache (SQLite→PostgreSQL schema change)
+  - Pushed Prisma schema to Vercel Postgres via prisma db push
+  - Verified database connection and API endpoints working
+- New component: markdown-renderer.tsx with light/dark variants
+
+Stage Summary:
+- 3 new AI models (GLM 4.7, GLM 5, Kimi 2.5), GLM 5 as default
+- UI polished across all views: typography, shadows, animations, markdown rendering
+- Chat messages now persist to Vercel Postgres database
+- Database verified working: POST/GET/DELETE all functional
+- Production: https://my-project-rho-brown-94.vercel.app
+- Git: https://github.com/dav-niu474/agentHub
+- ESLint passes, dev server HTTP 200
