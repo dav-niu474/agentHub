@@ -9,6 +9,7 @@ import {
   Settings,
   Coins,
   MessageSquare,
+  LayoutDashboard,
   type LucideIcon,
 } from 'lucide-react'
 import { useAppStore, type ViewMode } from '@/store/app-store'
@@ -33,6 +34,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { icon: LayoutDashboard, label: 'Workspace', viewMode: 'workspace' },
   { icon: House, label: 'Home', viewMode: 'landing' },
   { icon: Bot, label: 'Agent Store', viewMode: 'agents' },
   { icon: ListChecks, label: 'Tasks', viewMode: 'tasks' },

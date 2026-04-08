@@ -38,6 +38,7 @@ import { toast } from 'sonner'
 /** Map viewMode to a human-readable page title */
 const VIEW_MODE_TITLES: Record<string, string> = {
   landing: '',
+  workspace: 'Unified Workspace',
   agents: 'Agent Store',
   'agent-chat': '',
   tasks: 'Tasks',

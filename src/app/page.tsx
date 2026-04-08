@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/agenthub/sidebar'
 import { Topbar } from '@/components/agenthub/topbar'
 import MobileDrawer from '@/components/agenthub/mobile-drawer'
 import LandingView from '@/components/agenthub/landing-view'
+import UnifiedWorkspace from '@/components/agenthub/unified-workspace'
 import AgentChatWorkspace from '@/components/agenthub/agent-chat'
 import AgentStore from '@/components/agenthub/agent-store'
 import TasksView from '@/components/agenthub/tasks-view'
@@ -25,6 +26,7 @@ export default function Home() {
 
       <main className="h-full pt-[52px] md:pl-[80px]">
         {viewMode === 'landing' && <LandingView />}
+        {viewMode === 'workspace' && <UnifiedWorkspace />}
         {viewMode === 'agents' && <AgentStore />}
         {viewMode === 'agent-chat' && <AgentChatWorkspace />}
         {viewMode === 'tasks' && <TasksView />}

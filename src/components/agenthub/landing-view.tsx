@@ -69,8 +69,8 @@ const STEPS: { icon: LucideIcon; title: string; description: string }[] = [
   },
   {
     icon: Target,
-    title: 'Chat & Assign Tasks',
-    description: 'Click an agent in the sidebar to chat. Create tasks and assign them based on each agent\'s strengths.',
+    title: 'Describe & Dispatch',
+    description: 'In the Unified Workspace, describe your project. AI creates tasks and assigns agents automatically.',
   },
   {
     icon: Rocket,
@@ -167,9 +167,9 @@ export default function LandingView() {
               <Button
                 size="lg"
                 className="h-12 px-8 rounded-full bg-white text-gray-900 font-semibold text-base hover:bg-gray-100 shadow-lg shadow-white/20 transition-all"
-                onClick={() => setViewMode('agents')}
+                onClick={() => setViewMode('workspace')}
               >
-                Hire Agents
+                Open Workspace
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button

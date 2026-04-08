@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ViewMode = 'landing' | 'agents' | 'agent-chat' | 'tasks' | 'showcase' | 'pricing' | 'settings'
+export type ViewMode = 'landing' | 'workspace' | 'agents' | 'agent-chat' | 'tasks' | 'showcase' | 'pricing' | 'settings'
 
 // ==================== Type Definitions ====================
 
@@ -50,6 +50,15 @@ export interface ChatMessage {
     taskName?: string
     creditsCost?: number
   }
+}
+
+export interface WorkspaceMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: Date
+  createdTaskIds?: string[]
+  isProcessing?: boolean
 }
 
 export interface ProjectTask {
@@ -126,6 +135,11 @@ interface AppState {
   // Chat messages per agent
   chatMessages: ChatMessage[]
   addChatMessage: (message: ChatMessage) => void
+
+  // Unified workspace messages
+  workspaceMessages: WorkspaceMessage[]
+  addWorkspaceMessage: (message: WorkspaceMessage) => void
+  clearWorkspaceMessages: () => void
 
   // Project tasks
   projectTasks: ProjectTask[]
@@ -354,6 +368,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   chatMessages: [],
   addChatMessage: (message) => set((state) => ({ chatMessages: [...state.chatMessages, message] })),
+
+  workspaceMessages: [],
+  addWorkspaceMessage: (message) => set((state) => ({ workspaceMessages: [...state.workspaceMessages, message] })),
+  clearWorkspaceMessages: () => set({ workspaceMessages: [] }),
 
   projectTasks: [],
   addProjectTask: (task) => set((state) => ({ projectTasks: [...state.projectTasks, task] })),
