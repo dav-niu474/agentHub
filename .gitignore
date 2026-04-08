@@ -52,3 +52,15 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Database
+/db/*.db
+/db/*.db-journal
+
+# Research/temp JSON files
+teamoteam_*.json
+teamolab_*.json
+openclaw_*.json
+
+# Download
+/download/
